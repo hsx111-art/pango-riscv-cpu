@@ -18,6 +18,8 @@ make -C "$ROOT_DIR/isa_sim" clean
 make -C "$ROOT_DIR/isa_sim" -j2
 
 pushd "$TB_DIR" >/dev/null
+env -u NAME make -f makefile.generate_verilated CORE=riscv clean
+env -u NAME make -f makefile.generate_verilated CORE=riscv
 env -u NAME make -f makefile.build_verilated clean
 env -u NAME make -f makefile.build_verilated -j2 \
     SYSTEMC_HOME="$SYSTEMC_HOME" \
