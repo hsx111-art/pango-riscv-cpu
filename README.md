@@ -1,124 +1,160 @@
-# RISC-V Core
+# Pango RISC-V CPU Competition Project
 
-Github: [http://github.com/ultraembedded/riscv](http://github.com/ultraembedded/riscv)
+A long-lived FPGA and CPU design workspace for the **2026 National Undergraduate Embedded Chip and System Design Competition**, **FPGA Innovation Design Track**, **Purple Mountain FPGA / 紫光同创赛题一：基于紫光同创 RISC-V 指令集 CPU 设计**.
 
-A 32-bit RISC-V core written in Verilog and an instruction set simulator supporting RV32IM.  
-This core has been tested against a co-simulation model and exercised on FPGA.
+This repository starts from a verified, upstream-derived RISC-V CPU baseline. The immediate engineering rule is simple: a version enters the verified table only after its exact source revision and reproducible commands pass on both supported simulation paths.
 
-**For a higher performance dual issue CPU with branch prediction, see my latest RISC-V core here;**
-[http://github.com/ultraembedded/biriscv](http://github.com/ultraembedded/biriscv)
+> **Repository status:** this project is intended to remain **Private**. It contains third-party open-source RTL, competition materials, and future PDS/IP integration work. Before any future publication, review upstream licenses, PDS-generated content, board collateral, and every third-party dependency for redistribution permissions.
 
-## Overview
-![](doc/overview.png)
+## Project goals
 
-## Features
-* 32-bit RISC-V ISA CPU core.
-* Support RISC-V integer (I), multiplication and division (M), and CSR instructions (Z) extensions (RV32IMZicsr).
-* Supports user, supervisor and machine mode privilege levels.
-* Basic MMU support - capable of booting Linux with atomics (RV-A) SW emulation.
-* Implements base ISA spec [v2.1](https://github.com/ultraembedded/riscv/tree/master/doc/riscv_isa_spec.pdf) and privileged ISA spec [v1.11](https://github.com/ultraembedded/riscv/tree/master/doc/riscv_privileged_spec.pdf).
-* Verified using [Google's RISCV-DV](https://github.com/google/riscv-dv) random instruction sequences using cosimulation against [C++ ISA model](https://github.com/ultraembedded/exactstep).
-* Support for instruction / data cache, AXI bus interfaces or tightly coupled memories.
-* Configurable number of pipeline stages and result forwarding options.
-* Synthesizable Verilog 2001, Verilator and FPGA friendly.
-* Coremark:  **2.94 CoreMark/MHz**
-* Dhrystone: **1.25 DMIPS/MHz** ('legal compile options' / 337 instructions per iteration)
-* Want higher performance (**4.1CM/MHz** / **1.9DMIPS/MHz**) - see [my improved core](http://github.com/ultraembedded/biriscv).
+The project will evolve the current CPU baseline through measured, reviewable stages:
 
-#### Configuration
+- preserve a working functional baseline while adding directed and compliance-oriented tests;
+- evaluate timing, area, CPI, memory-system behavior, and FPGA implementation constraints;
+- add competition-specific functionality only after regression evidence exists;
+- keep every stable milestone reproducible on Windows and WSL;
+- record future PDS synthesis, timing-closure, and board bring-up evidence without committing generated tool trees.
 
-| Param Name                | Valid Range          | Description                                   |
-| ------------------------- |:--------------------:| ----------------------------------------------|
-| SUPPORT_SUPER             | 1/0                  | Enable supervisor / user privilege levels.    |
-| SUPPORT_MMU               | 1/0                  | Enable basic memory management unit.          |
-| SUPPORT_MULDIV            | 1/0                  | Enable HW multiply / divide (RV-M).           |
-| SUPPORT_LOAD_BYPASS       | 1/0                  | Support load result bypass paths.             |
-| SUPPORT_MUL_BYPASS        | 1/0                  | Support multiply result bypass paths.         |
-| SUPPORT_REGFILE_XILINX    | 1/0                  | Support Xilinx optimised register file.       |
-| EXTRA_DECODE_STAGE        | 1/0                  | Extra decode pipe stage for improved timing.  |
-| MEM_CACHE_ADDR_MIN        | 32'h0 - 32'hffffffff | Lowest cacheable memory address.              |
-| MEM_CACHE_ADDR_MAX        | 32'h0 - 32'hffffffff | Highest cacheable memory address.             |
+No branch-prediction, pipeline, cache, ISA, or performance redesign is part of the initial repository-freeze milestone.
 
-## Directories
+## Upstream and attribution
 
-| Name                | Contents                                            |
-| ------------------- | --------------------------------------------------- |
-| core/riscv          | RISC-V pipelined RV32IM CPU core (Verilog)          |
-| isa_sim             | Instruction set simulator (C)                       |
-| top_tcm_axi/src_v   | Example instance with 64KB DP-RAM & AXI Interfaces  |
-| top_tcm_axi/tb      | System-C testbench for the core                     |
-| top_cache_axi/src_v | Example instance with instruction and data caches.  |
-| top_cache_axi/tb    | System-C testbench for the core                     |
+- **Source repository:** <https://github.com/ultraembedded/riscv>
+- **Upstream baseline commit:** `7ae6f803e30f78c6ea3121e73c3adf50ff912730`
+- **Upstream release marker:** `v1.0.1`
+- **Original author/organization:** ultraembedded
+- **License:** retain and follow the upstream `LICENSE` file in this repository.
 
-## Example Core Instance (with TCM memory)
+The original commit history is preserved. Local commits add verification infrastructure, documentation, and tool-version compatibility fixes; they do not erase the upstream lineage.
 
-The top (top_tcm_axi/src_v/riscv_tcm_top.v) contains;
-* Instances one of the above cores, adding RAM and standard bus interfaces.
-* 64KB dual ported RAM for (I/D code and data).
-* AXI4 slave port for loading the RAM, DMA access, etc (including support for burst access).
-* AXI4-Lite master port for CPU access to peripherals.
-* Separate reset for CPU core to dual ported RAM / AXI interface (to allow program code to be loaded prior to CPU reset de-assertion).
+## Current CPU baseline
 
-### Memory Map
+The current competition starting point is the upstream-derived `core/riscv` RV32 core with the `top_tcm_axi` wrapper:
 
-| Range                     | Description                                         |
-| ------------------------- | --------------------------------------------------- |
-| 0x0000_0000 - 0x0000_ffff | 64KB TCM Memory                                     |
-| 0x0000_2000               | Boot address (configurable, see RISCV_BOOT_ADDRESS) |
-| 0x8000_0000 - 0xffff_ffff | Peripheral address space (from AXI4-L port)         |
+- 32-bit in-order-oriented Verilog core;
+- fetch, decode, issue/scoreboard, execute, LSU, CSR, exception/interrupt, and optional MMU blocks;
+- hardware integer multiply/divide path when `SUPPORT_MULDIV=1`;
+- 64 KiB dual-port TCM with separate CPU reset and AXI loading/access ports;
+- AXI4-Lite peripheral access path;
+- no dynamic BTB/BHT/RAS branch predictor in the current baseline;
+- no CPU-core RTL changes were made while establishing this repository baseline.
 
-### Interfaces
+### ISA claims for the default baseline
 
-| Name         | Description                                                           |
-| ------------ | --------------------------------------------------------------------- |
-| clk_i        | Clock input                                                           |
-| rst_i        | Async reset, active-high. Reset memory / AXI interface.               |
-| rst_cpu_i    | Async reset, active-high. Reset CPU core (excluding AXI / memory).    |
-| axi_t_*      | AXI4 slave interface for access to 64KB TCM memory.                   |
-| axi_i_*      | AXI4-Lite master interface for CPU access to peripherals.             |
-| intr_i       | Active high interrupt input (for connection external int controller). |
+The verified default configuration is conservative:
 
-### Testbench
+- RV32I integer base instructions exercised by the supplied program;
+- M extension hardware path (`MUL`, `MULH*`, `DIV*`, `REM*`);
+- CSR/System instruction path used by the core and simulation exit mechanism;
+- Machine mode;
+- `SUPPORT_MMU=0`;
+- compressed C, atomic A, and floating-point F/D extensions are **not claimed as verified hardware support**;
+- supervisor/MMU/Linux configurations remain separate, unverified targets for later work.
 
-A basic System-C / Verilator based testbench for the core is provided.
+The upstream README contains historical statements about RISCV-DV, Linux, CoreMark, and Dhrystone. Those statements are retained as upstream context, not treated as evidence for this checkout unless a reproducible test record is added here.
 
-Dependencies;
-* gcc
-* make
-* libelf
-* System-C (specify path using SYSTEMC_HOME)
-* Verilator (specify path using VERILATOR_SRC)
+## Verified versions
 
-To build the testbench;
+| Tag | Date | CPU/configuration | Verification environments | Status |
+| --- | --- | --- | --- | --- |
+| `v0.1.0-tcm-baseline` | 2026-09-30 | RV32IM + CSR/System, Machine mode, MMU off, `top_tcm_axi` TCM | WSL SystemC/Verilator/ISA simulator; Windows ModelSim SE-64 2020.4 HDL regression | Verified: `basic.elf` passed on both paths |
+
+The tag is only valid for the exact commit named by the annotated tag. Cache, compliance, benchmark, supervisor, MMU, and board-level claims are outside this first verified scope.
+
+## Reproduce the baseline
+
+### Baseline A: WSL and the original SystemC/Verilator path
+
+Environment used for the first verified version:
+
+- WSL distribution: `Ubuntu-A`
+- Ubuntu: `24.04.1 LTS`
+- Verilator: `5.020`
+- SystemC: `2.3.4`
+- packages: `libelf-dev`, `binutils-dev`, `libsystemc-dev`
+
+From PowerShell at the repository root:
+
+```powershell
+wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv && bash verification/wsl_baseline.sh"
 ```
-cd top_tcm_axi/tb
-make
-````
 
-To run the provided test executable;
+The script rebuilds `isa_sim`, regenerates the Verilator model, builds the SystemC harness, loads `isa_sim/images/basic.elf`, checks all ten supplied software test markers, and requires a zero exit status with `BASELINE_A_PASS`.
+
+### Baseline B: Windows ModelSim TCM regression
+
+Environment used for the first verified version:
+
+- ModelSim SE-64 `2020.4`, installed at `A:\modletech64_2020.4`
+- Python 3 for the standard-library ELF-to-memory converter
+- ASCII work directory under `C:\ultraembedded-riscv-modelsim\`
+
+From PowerShell at the repository root:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\verification\modelsim\run_tcm_baseline.ps1
 ```
-cd top_tcm_axi/tb
-make run
-````
 
-## Example Core Instance (with caches)
+The script converts `basic.elf` to a 64 KiB word image, compiles the TCM RTL and `tb_tcm_basic.v` with `+define+verilog_sim`, runs `vsim -batch`, releases reset, executes the image, and requires `BASELINE_B_PASS` with zero ModelSim errors and warnings.
 
-The top (top_cache_axi/src_v/riscv_top.v) contains;
-* Instances one of the above cores, adding RAM and standard bus interfaces.
-* 16KB 2-way set associative instruction cache
-* 16KB 2-way set associative data cache with write-back and allocate on write.
-* 2 x AXI4 master port for CPU access to instruction / data / peripherals.
+`vsim -c` is not the supported entry point in this environment because ModelSim 2020.4 reproduces a `FileWatch(fileName)` Tcl initialization error even with a minimal unrelated Verilog testcase. `-batch`, explicit `MODEL_TECH`/`MTI_HOME`, the installed `modelsim.ini`, and an ASCII work directory are the validated combination.
 
-### Interfaces
+## Current verification status
 
-| Name           | Description                                                           |
-| -------------- | --------------------------------------------------------------------- |
-| clk_i          | Clock input                                                           |
-| rst_i          | Async reset, active-high. Reset memory / AXI interface.               |
-| axi_i_*        | AXI4 master interface for CPU access to instruction memory.           |
-| axi_d_*        | AXI4 master interface for CPU access to data / peripheral memories.   |
-| intr_i         | Active high interrupt input (for connection external int controller). |
-| reset_vector_i | Boot vector.                                                          |
+The first baseline has been rerun from a clean build state:
 
-## Execution Example
-![](doc/core_exec.png)
+- WSL/SystemC/Verilator: ten `basic.elf` checks passed, simulation ended at approximately `109020 ns`, `BASELINE_A_PASS`.
+- Windows/ModelSim TCM: ten `basic.elf` checks passed, simulation ended at approximately `109010 ns`, `Errors: 0, Warnings: 0`, `BASELINE_B_PASS`.
+- No files under `core/riscv` were modified for this freeze.
+- Cache ModelSim compatibility remains a separate issue: the cache RTL has declaration-order problems under ModelSim 2020.4 and is not part of this tag.
+
+Detailed evidence is in [`doc/verification/v0.1.0-tcm-baseline.md`](doc/verification/v0.1.0-tcm-baseline.md) and the broader architecture audit in [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md).
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `core/riscv/` | Upstream CPU RTL. Keep close to upstream layout for synchronization. |
+| `top_tcm_axi/` | Primary competition baseline wrapper and original SystemC testbench. |
+| `top_cache_axi/` | Cache wrapper and original cache-oriented testbench; not in the first ModelSim baseline. |
+| `top_tcm_wrapper/` | Alternative TCM integration wrapper with fuller AXI signals. |
+| `isa_sim/` | C++ ISA simulator, ELF loader, cosimulation API, and supplied images. |
+| `verification/` | Reproducible WSL and Windows ModelSim baseline entry points. |
+| `doc/` | Architecture audit, upstream specifications, and verification evidence. |
+| `.codex/skills/` | Repository-local operating procedures, including Git hygiene. |
+
+Generated build directories, ModelSim work state, VCD/WLF waveforms, temporary memory images, PDS project trees, bitstreams, and large reports are excluded by `.gitignore` and must not enter commits accidentally.
+
+## Git and versioning policy
+
+- `main` is the stable, verified competition line.
+- `feat/...`, `fix/...`, `perf/...`, and `test/...` branches are used for isolated work.
+- A change reaches `main` only after the relevant regression evidence is recorded.
+- Use Conventional Commits and keep fixes, tests, documentation, and maintenance separable.
+- Annotated tags require exact reproducible evidence; future board versions must also record PDS version, device, constraints, frequency, timing result, bitstream hash, image hash, and board evidence.
+- The original upstream remote is retained as `upstream`; the competition repository is `origin` when available.
+
+The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex/skills/riscv-git-hygiene/SKILL.md).
+
+## Known limitations
+
+- This checkout does not contain official `riscv-tests`, RISC-V compliance, RISCV-DV, or benchmark source trees.
+- `basic.elf` is the current verified software image; passing it is not a complete ISA compliance claim.
+- Cache RTL passes Verilator lint but currently has ModelSim 2020.4 declaration compatibility errors.
+- Supervisor, MMU-enabled, Linux, timer-interrupt, and board-level configurations require separate directed tests.
+- The current baseline has no dynamic branch predictor and is not being performance-optimized in this repository-freeze milestone.
+
+## Roadmap
+
+1. Keep Baseline A/B green while adding directed RV32I/M/CSR/exception tests.
+2. Add fixed-version compliance-oriented tests and preserve their images/log summaries.
+3. Resolve cache tool portability independently and establish a cache regression.
+4. Add measurement infrastructure for CPI, branch penalty, load-use stalls, area, and Fmax.
+5. Evaluate one competition architecture direction at a time: branch prediction, memory system, ISA extension, or FPGA integration.
+6. Establish PDS synthesis, timing closure, and board bring-up records before claiming hardware results.
+
+## Third-party and redistribution note
+
+This repository includes upstream ultraembedded source and supplied third-party or generated materials. Preserve each license and copyright notice. PDS-generated outputs, vendor IP, board files, and future external test suites may carry additional terms. The repository is private while this inventory and permission review remain incomplete.
