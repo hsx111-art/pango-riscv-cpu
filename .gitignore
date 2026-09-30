@@ -23,6 +23,10 @@
 /top_cache_axi/tb/*.memh
 /top_tcm_wrapper/*.memh
 
+# ISA simulator build outputs
+/isa_sim/riscv-sim
+/isa_sim/libisa_sim.a
+
 # Tool and operating-system noise
 *.swp
 *.swo
