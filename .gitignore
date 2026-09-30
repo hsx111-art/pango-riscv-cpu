@@ -1,0 +1,44 @@
+# Reproducible simulation and build outputs
+**/build/
+**/obj/
+**/obj_dir/
+**/obj_verilated/
+**/verilated/
+**/lib/
+**/work/
+
+# ModelSim / Questa local state
+**/transcript
+**/vsim.wlf
+**/*.wlf
+**/*.vcd
+**/*.fst
+**/*.ucdb
+
+# Generated memory images and local simulation logs
+/verification/modelsim/*.memh
+/verification/modelsim/*.log
+/verification/modelsim/transcript*
+/top_tcm_axi/tb/*.memh
+/top_cache_axi/tb/*.memh
+/top_tcm_wrapper/*.memh
+
+# Tool and operating-system noise
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.vs/
+
+# PDS/FPGA generated outputs; keep source constraints and hand-written scripts
+**/pds_project/
+**/impl/
+**/synthesis/
+**/place_and_route/
+**/bitstream/
+**/*.bit
+**/*.bin
+**/*.mcs
+**/*.jed
+**/*.rpt
