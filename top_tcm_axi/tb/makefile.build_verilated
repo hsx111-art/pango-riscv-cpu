@@ -30,6 +30,7 @@ LIB_OPT      ?= $(SYSTEMC_HOME)/lib-linux64/libsystemc.a
 src2obj       = $(OBJ_DIR)$(patsubst %$(suffix $(1)),%.o,$(notdir $(1)))
 SRC_LIST      = $(foreach src,$(SRC_DIR),$(wildcard $(src)/*.cpp))
 SRC_LIST     += $(VERILATOR_SRC)/verilated.cpp
+SRC_LIST     += $(VERILATOR_SRC)/verilated_threads.cpp
 SRC_LIST     += $(VERILATOR_SRC)/verilated_vcd_c.cpp
 SRC_LIST     += $(VERILATOR_SRC)/verilated_vcd_sc.cpp
 
