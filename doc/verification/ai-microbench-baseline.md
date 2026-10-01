@@ -1,6 +1,6 @@
 # AI Microbenchmark and Microarchitecture Profiling Baseline
 
-Date: 2026-10-01  
+Date: 2026-10-01
 Scope: `riscv_core` + `top_tcm_axi` TCM, RV32IM, Machine mode, MMU off
 
 This record defines the first repeatable integer AI-oriented workload baseline
