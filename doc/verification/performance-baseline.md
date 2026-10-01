@@ -100,4 +100,3 @@ correctness checks, but a ten-second benchmark run is expected to be measured
 on the FPGA or another appropriately timed platform. The future report must
 include the FPGA clock, clock constraints, exact compiler flags, iterations,
 cycles, retired instructions, CPI, and the resulting CoreMark score.
-

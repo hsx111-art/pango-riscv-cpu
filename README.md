@@ -107,8 +107,8 @@ The first baseline has been rerun from a clean build state:
 
 - WSL/SystemC/Verilator: ten `basic.elf` checks passed, simulation ended at approximately `109020 ns`, `BASELINE_A_PASS`.
 - Windows/ModelSim TCM: ten `basic.elf` checks passed, simulation ended at approximately `109010 ns`, `Errors: 0, Warnings: 0`, `BASELINE_B_PASS`.
-- Standard-test matrix: 59 manifest entries, 51 runnable entries passed in both environments, 2 entries are explicitly unsupported, and 6 entries are not yet tested.
-- The only core RTL change is the RV32 shift-immediate legality fix in `core/riscv/riscv_defs.v`; no microarchitectural optimization was made.
+- Current working baseline matrix: 70 manifest entries, 64 runnable entries passed in both environments, 2 entries are explicitly unsupported, and 4 entries are not yet tested.
+- The current verification work adds architectural counters and directed CSR/trap/interrupt tests; no branch, pipeline, cache, or other microarchitectural optimization was made.
 - Cache ModelSim compatibility remains a separate issue: the cache RTL has declaration-order problems under ModelSim 2020.4 and is not part of this tag.
 
 Detailed evidence is in [`doc/verification/v0.1.0-tcm-baseline.md`](doc/verification/v0.1.0-tcm-baseline.md), the ISA matrix in [`doc/verification/isa-validation-matrix.md`](doc/verification/isa-validation-matrix.md), and the broader architecture audit in [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md).
@@ -134,6 +134,35 @@ Both commands must report zero failures. The WSL command ends with
 `MODELSIM_REGRESSION_SUMMARY`. See the [ISA validation matrix](doc/verification/isa-validation-matrix.md)
 for the exact current counts and limitations.
 
+### CoreMark smoke baseline
+
+The pinned CoreMark source is kept under `third_party/coremark/` and the
+RV32IM/TCM port is under `verification/coremark/`. Both supported simulation
+environments run the same ELF and check the same 2K validation CRCs:
+
+```powershell
+Push-Location C:\
+try {
+  wsl.exe -d Ubuntu-A -- env -i `
+    HOME=/home/shixin `
+    PATH=/home/shixin/.local/riscv-tools/usr/bin:/usr/bin:/bin `
+    ITERATIONS=1 RUN_TYPE=validation TEST_TIMEOUT_SEC=600 `
+    bash -lc 'cd /mnt/a/ultraembedded-riscv; bash verification/coremark/run_wsl_coremark.sh'
+}
+finally { Pop-Location }
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\verification\coremark\run_modelsim_coremark.ps1 `
+  -Iterations 1 -RunType validation -ClockHz 1000000 -MaxCycles 2000000
+```
+
+The current one-iteration smoke result is `cycles=423772`,
+`retired=315440`, and `cpi_x1000=1343` in both environments. It is a
+correctness and measurement-path result, not a reportable CoreMark score:
+the run intentionally does not meet CoreMark's ten-second reporting rule.
+See [`doc/verification/performance-baseline.md`](doc/verification/performance-baseline.md)
+for the measurement contract and formal benchmark requirements.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -146,6 +175,7 @@ for the exact current counts and limitations.
 | `verification/` | Reproducible WSL and Windows ModelSim baseline entry points. |
 | `third_party/riscv-tests/` | Vendored RV32I/RV32M and selected machine-mode test sources used by the manifest. |
 | `third_party/riscv-test-env/` | Vendored headers and environment macros required to build the selected tests. |
+| `third_party/coremark/` | Pinned, license-preserving CoreMark benchmark sources. |
 | `doc/` | Architecture audit, upstream specifications, and verification evidence. |
 | `.codex/skills/` | Repository-local operating procedures, including Git hygiene. |
 
@@ -166,16 +196,17 @@ The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex
 
 - This checkout contains a deliberately limited, vendored subset of `riscv-tests` and `riscv-test-env`; it does not contain a complete compliance suite, RISCV-DV, or benchmark source tree.
 - `basic.elf` is the current verified software image; passing it is not a complete ISA compliance claim.
-- The standard-test matrix currently has 51 passes, 2 unsupported entries, and 6 not-yet-tested entries. RV32I is therefore not claimed complete.
+- The current standard-test matrix has 64 passes, 2 unsupported entries, and 4 not-yet-tested entries. RV32I is therefore not claimed complete.
 - `misa` reports RV32I/M for the default configuration. A/C/F/D are not claimed as implemented or verified.
-- The baseline has machine-mode CSR and trap paths, but external/timer interrupts, `minstret`, supervisor mode, MMU, and PMP are not fully validated.
+- The baseline has machine-mode CSR, trap, external-interrupt injection, timer-compare, and `minstret` directed coverage. Supervisor mode, MMU, and PMP remain outside the default baseline.
+- CoreMark correctness and interval metrics are validated in both simulators, but no reportable CoreMark score or CoreMark/MHz result is claimed yet.
 - Cache RTL passes Verilator lint but currently has ModelSim 2020.4 declaration compatibility errors.
 - Supervisor, MMU-enabled, Linux, timer-interrupt, and board-level configurations require separate directed tests.
 - The current baseline has no dynamic branch predictor and is not being performance-optimized in this repository-freeze milestone.
 
 ## Roadmap
 
-1. Keep Baseline A/B and the current 59-entry matrix green while adding directed CSR, system, trap, and interrupt tests.
+1. Keep Baseline A/B and the current 70-entry matrix green while adding directed CSR, system, trap, and interrupt tests.
 2. Fill the not-yet-tested and unsupported entries only when the baseline configuration and termination protocol are defined clearly.
 3. Add fixed-version compliance-oriented tests and preserve their images/log summaries.
 4. Resolve cache tool portability independently and establish a cache regression.

@@ -1,6 +1,6 @@
 # ISA Validation Matrix
 
-Date: 2026-09-30
+Date: 2026-10-01
 Scope: `riscv_core` + `top_tcm_axi` TCM, Machine mode, `SUPPORT_MMU=0`
 
 This document separates RTL presence from executable evidence. A feature is
@@ -20,13 +20,13 @@ not called validated merely because a decoder, CSR, or parameter exists.
 
 ## Regression totals
 
-The manifest contains 59 entries:
+The manifest contains 70 entries:
 
 | Category | Count | WSL/SystemC/Verilator | Windows/ModelSim |
 | --- | ---: | --- | --- |
-| Runnable entries | 51 | 51 pass | 51 pass |
+| Runnable entries | 64 | 64 pass | 64 pass |
 | Unsupported entries | 2 | reported, not run | reported, not run |
-| Not-yet-tested entries | 6 | reported, not run | reported, not run |
+| Not-yet-tested entries | 4 | reported, not run | reported, not run |
 | Failed entries | 0 | 0 | 0 |
 
 Commands used for the full matrix are:
@@ -84,15 +84,15 @@ configuration enables `SUPPORT_MULDIV=1` in `core/riscv/riscv_core.v:42-53`.
 | --- | --- | --- | --- | --- |
 | CSR read/write/set/clear, immediate forms | Yes | `rv32mi/mcsr` | Validated in the tested subset | Decode and data selection are in `core/riscv/riscv_csr.v:104-150`; register access is in `riscv_csr_regfile.v:182-210,434-461`. The test does not cover every CSR or every privilege rule. |
 | `misa`, `mhartid`, writable machine CSRs | Yes | `rv32mi/mcsr` | Validated | `misa_w` is formed in `riscv_csr.v:155-157`; the test passes. |
-| `ECALL` | Yes | no terminating test in manifest | Not yet tested | Exception generation is in `riscv_csr.v:239-246`; the vendored `rv32mi/scall.S` source depends on a missing `rv64si/scall.S`. |
-| `EBREAK` | Yes | no terminating test in manifest | Not yet tested | Breakpoint exception generation is in `riscv_csr.v:246-250`; `rv32mi/sbreak.S` has the same missing-source limitation. |
-| `MRET` / xRET | Yes | `rv32mi/ma_addr` | Validated in this path | xRET decode and privilege return are in `riscv_csr.v:106-107,244-247` and `riscv_csr_regfile.v:597-609`. Supervisor return is not part of the baseline configuration. |
-| `WFI` | Yes | no standalone test | Not yet tested | Decoder path is present at `riscv_csr.v:114`; no current test proves the wait/interrupt behavior. |
-| `FENCE` | Yes | no standalone test | Not yet tested | Decoder path is present at `riscv_csr.v:115`; only `fence_i` is in the runnable matrix. |
+| `ECALL` | Yes | `directed/ecall` | Validated | Machine ECALL cause, zero `mtval`, `mepc` advance, and `mret` are checked by a terminating handler. |
+| `EBREAK` | Yes | `directed/ebreak` | Validated | Breakpoint cause, zero `mtval`, `mepc` advance, and `mret` are checked by a terminating handler. |
+| `MRET` / xRET | Yes | `rv32mi/ma_addr`, directed trap tests | Validated in machine mode | xRET decode and privilege return are in `riscv_csr.v` and `riscv_csr_regfile.v`. Supervisor return is not part of the baseline configuration. |
+| `WFI` | Yes | `directed/wfi` | Validated for legal decode/forward progress | The test proves the baseline does not deadlock on WFI without a pending interrupt. It does not claim a low-power implementation. |
+| `FENCE` | Yes | `directed/fence` | Validated for TCM forward progress | The test proves legal decode and forward progress; external memory ordering is outside this TCM-only check. |
 | `FENCE.I` | Yes | `rv32ui/fence_i` | Validated | `riscv_csr.v:116` and the fetch invalidation path are exercised. |
 | Simulation exit / putc CSR | Yes | all runnable tests | Validated as infrastructure | Custom `CSR_DSCRATCH` / `CSR_SIM_CTRL` handling is in `riscv_defs.v:325-329` and `riscv_csr_regfile.v:561-577`. |
-| `mcycle` / `mtime` | Yes | no architectural counter test | Implemented, not fully validated | `csr_mcycle_q` and upper-half counter state are in `riscv_csr_regfile.v:103-104,266,503-510`. |
-| `minstret` / `instret` | No evidence in current RTL | `zicntr`, `instret_overflow` not run | Not yet tested / currently unavailable | No `minstret` or `instret` implementation was found in the current RTL. |
+| `mcycle` / read-only cycle aliases | Yes | `rv32mi/zicntr`, `directed/counters` | Validated for 32-bit TCM measurements | Counter writes, high halves, and `cycle/cycleh` aliases are checked. The current TCM baseline exposes 32-bit low/high CSRs. |
+| `minstret` / `instret` | Yes | `rv32mi/zicntr`, `rv32mi/instret_overflow`, `directed/counters` | Validated for retirement and overflow behavior | The counter increments from the RTL retirement event, suppresses the writing instruction's implicit increment, and is exposed through read-only aliases. |
 
 The `misa` value returned by this baseline explicitly reports RV32, I, and M
 only. Constants for A/C/F/D exist in `riscv_defs.v`, but they are not evidence
@@ -102,12 +102,12 @@ of implemented or verified extensions.
 
 | Area | Status | Evidence / limitation |
 | --- | --- | --- |
-| Illegal instruction exception | Validated for RV32 shift immediate | `rv32mi/shamt` checks `mcause == CAUSE_ILLEGAL_INSTRUCTION`; exception encoding is in `riscv_defs.v:485-491`. General illegal-instruction coverage is not complete. |
-| Misaligned load/store exception | Validated for `ma_addr`; test environment unsupported for `ma_data` | LSU fault outputs connect through `riscv_core.v:362-404`; trap handling is in `riscv_csr_regfile.v:381-430`. |
-| Misaligned fetch/branch target | Implemented, not independently tested | `riscv_pipe_ctrl.v:138,190-201` creates the fetch exception. |
-| Machine trap entry and `mret` | Validated in `ma_addr` and `shamt` | `mtvec`, `mepc`, `mcause`, and trap branch logic are in `riscv_csr_regfile.v:282-337,587-628`. |
-| External interrupt input | Implemented in RTL, not tested | `intr_i` is wired from `top_tcm_axi/src_v/riscv_tcm_top.v:186` into `riscv_csr.v:176`; no interrupt test passes in the current matrix. |
-| Timer interrupt | Not available in this baseline | `timer_irq_w` is hard-wired to `1'b0` in `riscv_csr.v:155`; the CSR file has timer-compare state but no active timer source. |
+| Illegal instruction exception | Validated | `rv32mi/shamt` and `directed/illegal` check `mcause`, `mtval`, `mepc`, and `mret`. |
+| Misaligned load/store exception | Validated | `directed/misaligned_load` and `directed/misaligned_store` check cause, `mtval`, `mepc`, and return. `rv32ui/ma_data` remains unsupported because its original image has no terminating handler. |
+| Misaligned fetch/branch target | Validated | `directed/misaligned_fetch` reaches the handler and returns. |
+| Machine trap entry and `mret` | Validated | `mtvec`, `mepc`, `mcause`, and `mtval` are checked by the directed trap handlers. |
+| External interrupt input | Validated as testbench-injected machine interrupt | `directed/external_interrupt` drives `intr_i` at `IRQ_CYCLE=200`. This does not claim a PLIC or external interrupt controller implementation. |
+| Timer interrupt | Validated as internal `mtimecmp`/`mcycle` source | `directed/timer_interrupt` programs the internal compare path. This does not claim a platform CLINT integration. |
 | Supervisor mode | Not in baseline configuration | `riscv_core.v:48` defaults `SUPPORT_SUPER=0`; supervisor code exists but is not enabled or validated. |
 | MMU / SV32 | Not in baseline configuration | `riscv_core.v:49` defaults `SUPPORT_MMU=0`; the MMU module is instantiated but bypass configuration is used. |
 | PMP | Unsupported | No PMP implementation is enabled for this machine-mode TCM baseline; `rv32mi/pmpaddr` is reported unsupported. |
@@ -129,19 +129,22 @@ of implemented or verified extensions.
 
 ## Measurement and benchmark readiness
 
-The current regression has a timeout cycle counter in
-`verification/modelsim/tb_tcm_regression.v`, but it does not yet export a
-canonical instruction count, completed-instruction count, or CPI report. The
-RTL exposes `mcycle` but no complete `minstret` counter was found. Therefore
-there is currently no defensible CoreMark score or CPI baseline. Establishing
-those measurements is a follow-up verification task, not a microarchitectural
-optimization in this phase.
+The regression reports architectural `mcycle` and `minstret` values in both
+environments. `retired` in the metrics line is the final architectural
+`minstret` value; the ModelSim writeback probe is reported separately as
+`retired_probe` for diagnostics only. `steps`/`cycles` are harness counters and
+are useful for debugging, but benchmark comparisons must use counter deltas.
+CPI is computed as `delta(mcycle) / delta(minstret)` after counters are reset
+or bracketed around the measured region. The CoreMark port prints its own
+bracketed `COREMARK_METRICS` line with cycles, retired instructions, and
+integer CPI. Branch, stall, and IPC counters are not yet architectural signals
+in this baseline.
 
 ## Current conclusion
 
 The repository is suitable as a frozen RV32IM Machine-mode TCM development
-starting point. It is not yet a complete RISC-V compliance result. The next
-verification work should extend the matrix for CSR/system and trap behavior,
-add an explicit interrupt test environment, and only then establish cycle and
-benchmark measurements. No branch predictor, pipeline, cache, multiplier, or
+starting point. It is not yet a complete RISC-V compliance result and it has
+no reportable CoreMark score yet. The pinned CoreMark source, RV32IM TCM port,
+CRC smoke run, and bracketed cycle/retirement metrics are now reproducible in
+both environments. No branch predictor, pipeline, cache, multiplier, or
 divider optimization is included in this baseline.
