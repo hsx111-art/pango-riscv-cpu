@@ -163,6 +163,28 @@ the run intentionally does not meet CoreMark's ten-second reporting rule.
 See [`doc/verification/performance-baseline.md`](doc/verification/performance-baseline.md)
 for the measurement contract and formal benchmark requirements.
 
+### AI microbenchmark and profiling baseline
+
+The current performance branch also includes a deterministic bare-metal
+microbenchmark suite under `verification/ai_microbench/` with `dot_i8`,
+`gemm_i8`, `conv_i8`, and `relu_i8`. Each workload checks its checksum and
+reports a bracketed `mcycle`/`minstret` interval. With `AI_REPEAT=16`, the
+recorded intervals are:
+
+```text
+dot_i8  cycles=14402  retired=11318  cpi_x1000=1272  checksum=4656
+gemm_i8 cycles=134082 retired=117560 cpi_x1000=1140  checksum=49
+conv_i8 cycles=178403 retired=150617 cpi_x1000=1184  checksum=-3
+relu_i8 cycles=19073   retired=16887  cpi_x1000=1129  checksum=158
+```
+
+WSL/SystemC/Verilator and Windows/ModelSim use the same images, checksums, and
+event classes. The harnesses additionally report verification-only issue,
+hold, LSU, branch, redirect, interrupt, and issue-blocked counts; these are
+diagnostic probes, not architectural counters or performance claims. See
+[`doc/verification/ai-microbench-baseline.md`](doc/verification/ai-microbench-baseline.md)
+for the full table and reproduction commands.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -200,6 +222,7 @@ The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex
 - `misa` reports RV32I/M for the default configuration. A/C/F/D are not claimed as implemented or verified.
 - The baseline has machine-mode CSR, trap, external-interrupt injection, timer-compare, and `minstret` directed coverage. Supervisor mode, MMU, and PMP remain outside the default baseline.
 - CoreMark correctness and interval metrics are validated in both simulators, but no reportable CoreMark score or CoreMark/MHz result is claimed yet.
+- The AI microbenchmark interval and profile data are repeatable in both simulators, but the profile data is verification-only and does not by itself prove an optimization result.
 - Cache RTL passes Verilator lint but currently has ModelSim 2020.4 declaration compatibility errors.
 - Supervisor, MMU-enabled, Linux, timer-interrupt, and board-level configurations require separate directed tests.
 - The current baseline has no dynamic branch predictor and is not being performance-optimized in this repository-freeze milestone.
@@ -210,7 +233,7 @@ The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex
 2. Fill the not-yet-tested and unsupported entries only when the baseline configuration and termination protocol are defined clearly.
 3. Add fixed-version compliance-oriented tests and preserve their images/log summaries.
 4. Resolve cache tool portability independently and establish a cache regression.
-5. Add measurement infrastructure for CPI, branch penalty, load-use stalls, area, and Fmax.
+5. Extend the measurement infrastructure with branch penalty, load-use stalls, area, and Fmax evidence while preserving the architectural counter contract.
 6. Evaluate one competition architecture direction at a time: branch prediction, memory system, ISA extension, or FPGA integration.
 7. Establish PDS synthesis, timing closure, and board bring-up records before claiming hardware results.
 

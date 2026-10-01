@@ -25,6 +25,19 @@ read-only aliases. The CoreMark smoke run is short enough that 32-bit wrap is
 not a factor. Longer FPGA runs must either bracket the interval below one
 32-bit wrap or extend the measurement code to combine the high halves.
 
+## Profiling contract
+
+The verification harnesses also report diagnostic event counts for issue,
+retirement, LSU and pipeline holds, divider and CSR holds, load/store/multiply
+/divide/CSR issue, branch requests, taken branches, redirects, interrupts, and
+issue blocking. These are sampled from existing RTL control signals and are not
+architectural CSRs. They are useful for comparing the same workload across
+revisions, but the architectural `mcycle`/`minstret` interval remains the
+performance comparison authority.
+
+The exact event definitions, four deterministic int8 workloads, and their
+recorded results are in [`ai-microbench-baseline.md`](ai-microbench-baseline.md).
+
 ## Pinned source and port
 
 - Source: EEMBC CoreMark
