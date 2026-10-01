@@ -1,5 +1,6 @@
 # Reproducible simulation and build outputs
 **/build/
+/.build/
 **/obj/
 **/obj_dir/
 **/obj_verilated/
