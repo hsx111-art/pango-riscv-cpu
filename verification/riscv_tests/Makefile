@@ -21,11 +21,17 @@ UI_TESTS := add addi and andi auipc beq bge bgeu blt bltu bne fence_i \
             jal jalr lb lbu lh lhu lw ld_st lui ma_data or ori sb sh sw \
             st_ld sll slli slt slti sltiu sltu sra srai srl srli sub xor xori
 UM_TESTS := div divu mul mulh mulhsu mulhu rem remu
-MI_TESTS := mcsr ma_addr shamt
+MI_TESTS := mcsr ma_addr shamt zicntr instret_overflow
 
 TEST_NAMES := $(addprefix rv32ui/,$(UI_TESTS)) \
               $(addprefix rv32um/,$(UM_TESTS)) \
               $(addprefix rv32mi/,$(MI_TESTS))
+
+DIRECTED_TESTS := ecall ebreak wfi fence illegal counters misaligned_load \
+                  misaligned_store misaligned_fetch external_interrupt \
+                  timer_interrupt
+
+TEST_NAMES += $(addprefix directed/,$(DIRECTED_TESTS))
 ELFS := $(addprefix $(OUT)/,$(addsuffix .elf,$(TEST_NAMES)))
 
 .PHONY: all clean list
@@ -50,7 +56,13 @@ $(OUT)/rv32mi/%.elf: $(TESTS_ROOT)/rv32mi/%.S $(CURDIR)/link_tcm.ld $(ENV_ROOT)/
 	$(OBJDUMP) -d $@ > $(@:.elf=.dump)
 	$(READELF) -h -S $@ > $(@:.elf=.readelf)
 
-$(OUT)/rv32ui $(OUT)/rv32um $(OUT)/rv32mi:
+$(OUT)/directed/%.elf: $(CURDIR)/directed/%.S $(CURDIR)/link_tcm.ld \
+		$(ENV_ROOT)/p/riscv_test.h $(TESTS_ROOT)/macros/scalar/test_macros.h | $(OUT)/directed
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(OBJDUMP) -d $@ > $(@:.elf=.dump)
+	$(READELF) -h -S $@ > $(@:.elf=.readelf)
+
+$(OUT)/rv32ui $(OUT)/rv32um $(OUT)/rv32mi $(OUT)/directed:
 	mkdir -p $@
 
 clean:

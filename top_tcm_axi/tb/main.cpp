@@ -55,7 +55,10 @@ static void assert_handler(const sc_report& rep, const sc_actions& actions)
 static void exit_override(void)
 {
     if (tb)
+    {
+        tb->report_metrics();
         tb->abort();
+    }
 }
 //--------------------------------------------------------------------
 // vl_finish: Handling of verilog $finish

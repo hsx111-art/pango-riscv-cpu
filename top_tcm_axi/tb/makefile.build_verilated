@@ -3,6 +3,8 @@
 ###############################################################################
 VERILATOR_SRC ?= /usr/share/verilator/include
 SYSTEMC_HOME  ?= /usr/local/systemc-2.3.1
+SYSTEMC_INCLUDE ?= $(if $(wildcard $(SYSTEMC_HOME)/include/systemc.h),$(SYSTEMC_HOME)/include,/usr/include)
+SYSTEMC_LIBDIR  ?= $(if $(wildcard $(SYSTEMC_HOME)/lib-linux64/libsystemc.a),$(SYSTEMC_HOME)/lib-linux64,/usr/lib/x86_64-linux-gnu)
 
 SRC_DIR       ?= verilated/
 OBJ_DIR       ?= obj_verilated/
@@ -13,7 +15,7 @@ LIBNAME       ?= libsyscverilated.a
 # Additional include directories
 INCLUDE_PATH ?=
 INCLUDE_PATH += $(SRC_DIR)
-INCLUDE_PATH += $(SYSTEMC_HOME)/include
+INCLUDE_PATH += $(SYSTEMC_INCLUDE)
 INCLUDE_PATH += $(VERILATOR_SRC)
 INCLUDE_PATH += $(VERILATOR_SRC)/vltstd
 
@@ -24,7 +26,7 @@ CFLAGS       += -fpic
 CFLAGS       += $(patsubst %,-I%,$(INCLUDE_PATH))
 CFLAGS       += $(EXTRA_CFLAGS)
 
-LIB_OPT      ?= $(SYSTEMC_HOME)/lib-linux64/libsystemc.a
+LIB_OPT      ?= $(SYSTEMC_LIBDIR)/libsystemc.so
 
 # SRC / Object list
 src2obj       = $(OBJ_DIR)$(patsubst %$(suffix $(1)),%.o,$(notdir $(1)))

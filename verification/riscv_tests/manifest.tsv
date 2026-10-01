@@ -55,6 +55,17 @@ rv32mi/illegal	Machine trap	not-yet-tested	contains supervisor, vectored interru
 rv32mi/csr	Machine CSR	not-yet-tested	vendored subset does not include the referenced rv64si/csr.S source
 rv32mi/scall	Machine trap	not-yet-tested	vendored subset does not include the referenced rv64si/scall.S source
 rv32mi/sbreak	Machine trap	not-yet-tested	vendored subset does not include the referenced rv64si/sbreak.S source
-rv32mi/zicntr	Zicsntr	not-yet-tested	requires instret/minstret behavior not implemented by the current RTL
-rv32mi/instret_overflow	Zicsntr	not-yet-tested	requires minstret/minstreth behavior not implemented by the current RTL
+rv32mi/zicntr	Zicntr	run	cycle/instret read-only aliases are readable through register and immediate CSR forms
+rv32mi/instret_overflow	Zicntr	run	minstret writes suppress retirement increment and low/high overflow is coherent
 rv32mi/pmpaddr	PMP	unsupported	PMP is not implemented in the current machine-mode TCM configuration
+directed/ecall	Machine trap	run	machine ECALL trap, mtval, mepc advance, and MRET
+directed/ebreak	Machine trap	run	machine EBREAK trap, mtval, mepc advance, and MRET
+directed/wfi	Machine system	run	WFI legal decode and forward progress without a pending interrupt
+directed/fence	Machine system	run	ordinary FENCE legal decode and forward progress in TCM
+directed/illegal	Machine trap	run	illegal instruction cause, mtval, mepc advance, and MRET
+directed/counters	Zicsntr	run	standard mcycle/minstret reads, aliases, writes, and retired-count progress
+directed/misaligned_load	Machine trap	run	misaligned load cause, mtval, mepc advance, and MRET
+directed/misaligned_store	Machine trap	run	misaligned store cause, mtval, mepc advance, and MRET
+directed/misaligned_fetch	Machine trap	run	misaligned instruction target cause and trap return
+directed/external_interrupt	Machine interrupt	run	machine external interrupt entry, mtval, and MRET	IRQ_CYCLE=200
+directed/timer_interrupt	Machine interrupt	run	internal mtimecmp timer interrupt entry and MRET

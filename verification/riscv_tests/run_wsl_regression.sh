@@ -30,7 +30,7 @@ fail=0
 unsupported=0
 not_tested=0
 total=0
-while IFS=$'\t' read -r name isa status comment; do
+while IFS=$'\t' read -r name isa status comment options; do
     [[ -z "$name" || "$name" == \#* ]] && continue
     total=$((total + 1))
 
@@ -61,7 +61,14 @@ while IFS=$'\t' read -r name isa status comment; do
 
     echo "RUN $name"
     set +e
-    output=$(timeout --foreground "${TEST_TIMEOUT_SEC}s" env -u NAME ENABLE_WAVES=no ./build/test.x -f "$image" 2>&1)
+    run_env=(env -u NAME ENABLE_WAVES=no)
+    if [[ -n "${options:-}" ]]; then
+        case "$options" in
+            IRQ_CYCLE=*) run_env+=("IRQ_CYCLE=${options#IRQ_CYCLE=}") ;;
+            *) echo "REGRESSION_INFRA_FAIL: unsupported test options '$options' for $name" >&2; exit 2 ;;
+        esac
+    fi
+    output=$(timeout --foreground "${TEST_TIMEOUT_SEC}s" "${run_env[@]}" ./build/test.x -f "$image" 2>&1)
     rc=$?
     set -e
     printf '%s\n' "$output"

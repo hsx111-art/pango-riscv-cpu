@@ -61,6 +61,9 @@ module tb_tcm_regression;
     integer      index;
     reg          pass_seen;
     reg          fail_seen;
+    integer      irq_cycle;
+    integer      retired_count;
+    real         cpi_value;
 
     riscv_tcm_top #(
         .BOOT_VECTOR(32'h00002000),
@@ -127,6 +130,8 @@ module tb_tcm_regression;
             $fatal(1, "TESTNAME plusarg is required");
         if (!$value$plusargs("MAX_CYCLES=%d", max_cycles))
             max_cycles = 1000000;
+        if (!$value$plusargs("IRQ_CYCLE=%d", irq_cycle))
+            irq_cycle = -1;
 
         clk_i = 1'b0;
         rst_i = 1'b1;
@@ -159,6 +164,7 @@ module tb_tcm_regression;
         axi_t_arburst_i = 2'b0;
         axi_t_rready_i = 1'b0;
         cycle_count = 0;
+        retired_count = 0;
         pass_seen = 1'b0;
         fail_seen = 1'b0;
 
@@ -176,6 +182,14 @@ module tb_tcm_regression;
     // Sample the writeback request one half-cycle earlier so ModelSim can
     // classify the standard test before the RTL terminates the run.
     always @(negedge clk_i) begin
+        if (!rst_i && dut.u_core.u_issue.u_pipe_ctrl.instruction_retired_w)
+            retired_count = retired_count + 1;
+        if (!rst_i && irq_cycle >= 0) begin
+            if (cycle_count == irq_cycle)
+                intr_i[0] = 1'b1;
+            else if (cycle_count == (irq_cycle + 1))
+                intr_i[0] = 1'b0;
+        end
         if (!rst_i && dut.u_core.u_csr.u_csrfile.csr_waddr_i == 12'h7b2) begin
             case (dut.u_core.u_csr.u_csrfile.csr_wdata_i[31:24])
                 8'h01: begin
@@ -194,6 +208,12 @@ module tb_tcm_regression;
                         $display("MODELSIM_TEST_FAIL: exit before PASS");
                         $fatal(1, "standard test exited without PASS");
                     end
+                    if (dut.u_core.u_csr.u_csrfile.csr_minstret_q != 0)
+                        cpi_value = dut.u_core.u_csr.u_csrfile.csr_mcycle_q * 1.0 /
+                                    dut.u_core.u_csr.u_csrfile.csr_minstret_q;
+                    else
+                        cpi_value = 0.0;
+                    $display("MODELSIM_METRICS cycles=%0d retired=%0d retired_probe=%0d mcycle=%08x minstret=%08x cpi=%0.6f", cycle_count, dut.u_core.u_csr.u_csrfile.csr_minstret_q, retired_count, dut.u_core.u_csr.u_csrfile.csr_mcycle_q, dut.u_core.u_csr.u_csrfile.csr_minstret_q, cpi_value);
                     $display("MODELSIM_TEST_COMPLETE");
                     $finish;
                 end

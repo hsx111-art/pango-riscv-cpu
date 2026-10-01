@@ -5,6 +5,7 @@
 #include "elf_load.h"
 
 #include <unistd.h>
+#include <stdio.h>
 
 #include "cosim_api.h"
 
@@ -28,6 +29,9 @@ public:
 
     int                          m_argc;
     char**                       m_argv;
+    int                          m_irq_cycle;
+    unsigned                     m_step_count;
+    bool                         m_metrics_reported;
     //-----------------------------------------------------------------
     // Signals
     //-----------------------------------------------------------------    
@@ -55,12 +59,32 @@ public:
 
     void set_argcv(int argc, char* argv[]) { m_argc = argc; m_argv = argv; }
 
+    void report_metrics(void)
+    {
+        if (m_metrics_reported)
+            return;
+
+        m_metrics_reported = true;
+        unsigned mcycle = m_dut->m_rtl->v->u_core->u_csr->u_csrfile->get_mcycle();
+        unsigned minstret = m_dut->m_rtl->v->u_core->u_csr->u_csrfile->get_minstret();
+        double cpi = minstret ? (double)mcycle / (double)minstret : 0.0;
+        printf("WSL_METRICS steps=%u retired=%u mcycle=%08x minstret=%08x cpi=%.6f\n",
+               m_step_count, minstret, mcycle, minstret, cpi);
+    }
+
     //-----------------------------------------------------------------
     // Construction
     //-----------------------------------------------------------------
     SC_HAS_PROCESS(testbench);
     testbench(sc_module_name name): testbench_vbase(name)
     {
+        m_irq_cycle  = -1;
+        m_step_count = 0;
+        m_metrics_reported = false;
+        const char *irq_cycle = getenv("IRQ_CYCLE");
+        if (irq_cycle && *irq_cycle)
+            m_irq_cycle = strtol(irq_cycle, NULL, 0);
+
         m_dut = new riscv_tcm_top_rtl("DUT");
         m_dut->clk_in(clk);
         m_dut->rst_in(rst);
@@ -120,13 +144,21 @@ public:
     //-----------------------------------------------------------------
     void step(void)
     {
+        if (m_irq_cycle >= 0 && m_step_count == (unsigned)m_irq_cycle)
+            intr_in.write(1U);
+        else
+            intr_in.write(0);
         wait();
+        intr_in.write(0);
+        m_step_count++;
     }
     //-----------------------------------------------------------------
     // reset: Release core from reset
     //-----------------------------------------------------------------
     void reset(uint32_t addr)
     {
+        m_step_count = 0;
+        intr_in.write(0);
         rst_cpu_in.write(true);
         wait();
         rst_cpu_in.write(false);

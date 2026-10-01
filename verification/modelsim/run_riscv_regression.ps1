@@ -97,7 +97,7 @@ foreach ($line in Get-Content -LiteralPath $manifest) {
     if ([string]::IsNullOrWhiteSpace($line) -or $line.TrimStart().StartsWith('#')) {
         continue
     }
-    $fields = $line -split "`t", 4
+    $fields = $line -split "`t", 5
     if ($fields.Count -lt 4) {
         throw "Invalid manifest line: $line"
     }
@@ -105,6 +105,7 @@ foreach ($line in Get-Content -LiteralPath $manifest) {
     $isa = $fields[1]
     $status = $fields[2]
     $comment = $fields[3]
+    $options = if ($fields.Count -ge 5) { $fields[4] } else { '' }
     if ($TestFilter -and $name -notlike $TestFilter) {
         continue
     }
@@ -144,6 +145,14 @@ foreach ($line in Get-Content -LiteralPath $manifest) {
         "+MAX_CYCLES=$MaxCycles",
         '-do', 'run -all; quit -f'
     )
+    if ($options) {
+        if ($options -match '^IRQ_CYCLE=([0-9]+)$') {
+            $simArgs += "+IRQ_CYCLE=$($Matches[1])"
+        }
+        else {
+            throw "Unsupported test options '$options' for $name"
+        }
+    }
     $log = Join-Path $logRoot ($name.Replace('/', '_') + '.log')
     Push-Location $simRoot
     try {

@@ -14,18 +14,18 @@ echo "SystemC: $SYSTEMC_HOME"
 echo "Verilator headers: $VERILATOR_SRC"
 echo "Test image: $TEST_IMAGE"
 
-make -C "$ROOT_DIR/isa_sim" clean
-make -C "$ROOT_DIR/isa_sim" -j2
+env -u NAME -u SRC make -C "$ROOT_DIR/isa_sim" clean
+env -u NAME -u SRC make -C "$ROOT_DIR/isa_sim" -j2
 
 pushd "$TB_DIR" >/dev/null
-env -u NAME make -f makefile.generate_verilated CORE=riscv clean
-env -u NAME make -f makefile.generate_verilated CORE=riscv
-env -u NAME make -f makefile.build_verilated clean
-env -u NAME make -f makefile.build_verilated -j2 \
+env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top clean
+env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top
+env -u NAME -u SRC make -f makefile.build_verilated clean
+env -u NAME -u SRC make -f makefile.build_verilated -j2 \
     SYSTEMC_HOME="$SYSTEMC_HOME" \
     VERILATOR_SRC="$VERILATOR_SRC" \
     LIB_OPT="$LIB_OPT"
-env -u NAME make -f makefile.build_sysc_tb -j2 \
+env -u NAME -u SRC make -f makefile.build_sysc_tb -j2 \
     SYSTEMC_HOME="$SYSTEMC_HOME" \
     VERILATOR_SRC="$VERILATOR_SRC"
 
