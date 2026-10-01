@@ -107,10 +107,32 @@ The first baseline has been rerun from a clean build state:
 
 - WSL/SystemC/Verilator: ten `basic.elf` checks passed, simulation ended at approximately `109020 ns`, `BASELINE_A_PASS`.
 - Windows/ModelSim TCM: ten `basic.elf` checks passed, simulation ended at approximately `109010 ns`, `Errors: 0, Warnings: 0`, `BASELINE_B_PASS`.
-- No files under `core/riscv` were modified for this freeze.
+- Standard-test matrix: 59 manifest entries, 51 runnable entries passed in both environments, 2 entries are explicitly unsupported, and 6 entries are not yet tested.
+- The only core RTL change is the RV32 shift-immediate legality fix in `core/riscv/riscv_defs.v`; no microarchitectural optimization was made.
 - Cache ModelSim compatibility remains a separate issue: the cache RTL has declaration-order problems under ModelSim 2020.4 and is not part of this tag.
 
-Detailed evidence is in [`doc/verification/v0.1.0-tcm-baseline.md`](doc/verification/v0.1.0-tcm-baseline.md) and the broader architecture audit in [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md).
+Detailed evidence is in [`doc/verification/v0.1.0-tcm-baseline.md`](doc/verification/v0.1.0-tcm-baseline.md), the ISA matrix in [`doc/verification/isa-validation-matrix.md`](doc/verification/isa-validation-matrix.md), and the broader architecture audit in [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md).
+
+### Standard RV32IM regression
+
+The vendored test subset is built and run through the same TCM memory model on
+both supported paths. The manifest is the source of truth for the distinction
+between `run`, `unsupported`, and `not-yet-tested` entries.
+
+From PowerShell at the repository root:
+
+```powershell
+wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv; TEST_TIMEOUT_SEC=10 bash verification/riscv_tests/run_wsl_regression.sh"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\verification\modelsim\run_riscv_regression.ps1 `
+  -MaxCycles 200000
+```
+
+Both commands must report zero failures. The WSL command ends with
+`BASELINE_A_PASS` plus a `REGRESSION_SUMMARY`; the ModelSim command reports a
+`MODELSIM_REGRESSION_SUMMARY`. See the [ISA validation matrix](doc/verification/isa-validation-matrix.md)
+for the exact current counts and limitations.
 
 ## Repository layout
 
@@ -122,6 +144,8 @@ Detailed evidence is in [`doc/verification/v0.1.0-tcm-baseline.md`](doc/verifica
 | `top_tcm_wrapper/` | Alternative TCM integration wrapper with fuller AXI signals. |
 | `isa_sim/` | C++ ISA simulator, ELF loader, cosimulation API, and supplied images. |
 | `verification/` | Reproducible WSL and Windows ModelSim baseline entry points. |
+| `third_party/riscv-tests/` | Vendored RV32I/RV32M and selected machine-mode test sources used by the manifest. |
+| `third_party/riscv-test-env/` | Vendored headers and environment macros required to build the selected tests. |
 | `doc/` | Architecture audit, upstream specifications, and verification evidence. |
 | `.codex/skills/` | Repository-local operating procedures, including Git hygiene. |
 
@@ -140,20 +164,24 @@ The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex
 
 ## Known limitations
 
-- This checkout does not contain official `riscv-tests`, RISC-V compliance, RISCV-DV, or benchmark source trees.
+- This checkout contains a deliberately limited, vendored subset of `riscv-tests` and `riscv-test-env`; it does not contain a complete compliance suite, RISCV-DV, or benchmark source tree.
 - `basic.elf` is the current verified software image; passing it is not a complete ISA compliance claim.
+- The standard-test matrix currently has 51 passes, 2 unsupported entries, and 6 not-yet-tested entries. RV32I is therefore not claimed complete.
+- `misa` reports RV32I/M for the default configuration. A/C/F/D are not claimed as implemented or verified.
+- The baseline has machine-mode CSR and trap paths, but external/timer interrupts, `minstret`, supervisor mode, MMU, and PMP are not fully validated.
 - Cache RTL passes Verilator lint but currently has ModelSim 2020.4 declaration compatibility errors.
 - Supervisor, MMU-enabled, Linux, timer-interrupt, and board-level configurations require separate directed tests.
 - The current baseline has no dynamic branch predictor and is not being performance-optimized in this repository-freeze milestone.
 
 ## Roadmap
 
-1. Keep Baseline A/B green while adding directed RV32I/M/CSR/exception tests.
-2. Add fixed-version compliance-oriented tests and preserve their images/log summaries.
-3. Resolve cache tool portability independently and establish a cache regression.
-4. Add measurement infrastructure for CPI, branch penalty, load-use stalls, area, and Fmax.
-5. Evaluate one competition architecture direction at a time: branch prediction, memory system, ISA extension, or FPGA integration.
-6. Establish PDS synthesis, timing closure, and board bring-up records before claiming hardware results.
+1. Keep Baseline A/B and the current 59-entry matrix green while adding directed CSR, system, trap, and interrupt tests.
+2. Fill the not-yet-tested and unsupported entries only when the baseline configuration and termination protocol are defined clearly.
+3. Add fixed-version compliance-oriented tests and preserve their images/log summaries.
+4. Resolve cache tool portability independently and establish a cache regression.
+5. Add measurement infrastructure for CPI, branch penalty, load-use stalls, area, and Fmax.
+6. Evaluate one competition architecture direction at a time: branch prediction, memory system, ISA extension, or FPGA integration.
+7. Establish PDS synthesis, timing closure, and board bring-up records before claiming hardware results.
 
 ## Third-party and redistribution note
 
