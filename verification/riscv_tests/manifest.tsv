@@ -1,0 +1,60 @@
+# name	isa	status	comment
+rv32ui/add	RV32I	run	integer add
+rv32ui/addi	RV32I	run	integer add immediate
+rv32ui/and	RV32I	run	bitwise and
+rv32ui/andi	RV32I	run	bitwise and immediate
+rv32ui/auipc	RV32I	run	upper immediate PC-relative
+rv32ui/beq	RV32I	run	conditional branch
+rv32ui/bge	RV32I	run	conditional branch
+rv32ui/bgeu	RV32I	run	conditional branch
+rv32ui/blt	RV32I	run	conditional branch
+rv32ui/bltu	RV32I	run	conditional branch
+rv32ui/bne	RV32I	run	conditional branch
+rv32ui/fence_i	RV32I	run	instruction fence
+rv32ui/jal	RV32I	run	jump and link
+rv32ui/jalr	RV32I	run	indirect jump and link
+rv32ui/lb	RV32I	run	load byte
+rv32ui/lbu	RV32I	run	load byte unsigned
+rv32ui/lh	RV32I	run	load halfword
+rv32ui/lhu	RV32I	run	load halfword unsigned
+rv32ui/lw	RV32I	run	load word
+rv32ui/ld_st	RV32I	run	load/store addressing
+rv32ui/lui	RV32I	run	load upper immediate
+rv32ui/ma_data	RV32I	unsupported	baseline raises misaligned load/store exceptions; test environment does not provide a terminating handler
+rv32ui/or	RV32I	run	bitwise or
+rv32ui/ori	RV32I	run	bitwise or immediate
+rv32ui/sb	RV32I	run	store byte
+rv32ui/sh	RV32I	run	store halfword
+rv32ui/sw	RV32I	run	store word
+rv32ui/st_ld	RV32I	run	store/load addressing
+rv32ui/sll	RV32I	run	logical shift left
+rv32ui/slli	RV32I	run	logical shift left immediate
+rv32ui/slt	RV32I	run	set less than
+rv32ui/slti	RV32I	run	set less than immediate
+rv32ui/sltiu	RV32I	run	set less than unsigned immediate
+rv32ui/sltu	RV32I	run	set less than unsigned
+rv32ui/sra	RV32I	run	arithmetic shift right
+rv32ui/srai	RV32I	run	arithmetic shift right immediate
+rv32ui/srl	RV32I	run	logical shift right
+rv32ui/srli	RV32I	run	logical shift right immediate
+rv32ui/sub	RV32I	run	integer subtract
+rv32ui/xor	RV32I	run	bitwise xor
+rv32ui/xori	RV32I	run	bitwise xor immediate
+rv32um/div	RV32M	run	signed divide
+rv32um/divu	RV32M	run	unsigned divide
+rv32um/mul	RV32M	run	low multiply
+rv32um/mulh	RV32M	run	high multiply signed
+rv32um/mulhsu	RV32M	run	high multiply signed/unsigned
+rv32um/mulhu	RV32M	run	high multiply unsigned
+rv32um/rem	RV32M	run	signed remainder
+rv32um/remu	RV32M	run	unsigned remainder
+rv32mi/mcsr	Machine CSR	run	machine-mode misa, mhartid, and writable CSR access
+rv32mi/ma_addr	Machine trap	run	misaligned load/store exception and mret handling
+rv32mi/shamt	Machine trap	run	RV32 illegal shift-immediate encoding and mcause
+rv32mi/illegal	Machine trap	not-yet-tested	contains supervisor, vectored interrupt, and MMU-dependent paths; current probe does not terminate
+rv32mi/csr	Machine CSR	not-yet-tested	vendored subset does not include the referenced rv64si/csr.S source
+rv32mi/scall	Machine trap	not-yet-tested	vendored subset does not include the referenced rv64si/scall.S source
+rv32mi/sbreak	Machine trap	not-yet-tested	vendored subset does not include the referenced rv64si/sbreak.S source
+rv32mi/zicntr	Zicsntr	not-yet-tested	requires instret/minstret behavior not implemented by the current RTL
+rv32mi/instret_overflow	Zicsntr	not-yet-tested	requires minstret/minstreth behavior not implemented by the current RTL
+rv32mi/pmpaddr	PMP	unsupported	PMP is not implemented in the current machine-mode TCM configuration
