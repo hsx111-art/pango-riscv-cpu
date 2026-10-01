@@ -209,15 +209,15 @@ static const char * inst_names[ENUM_INST_MAX+1] =
 
 // slli
 #define INST_SLLI 0x1013
-#define INST_SLLI_MASK 0xfc00707f
+#define INST_SLLI_MASK 0xfe00707f
 
 // srli
 #define INST_SRLI 0x5013
-#define INST_SRLI_MASK 0xfc00707f
+#define INST_SRLI_MASK 0xfe00707f
 
 // srai
 #define INST_SRAI 0x40005013
-#define INST_SRAI_MASK 0xfc00707f
+#define INST_SRAI_MASK 0xfe00707f
 
 // lui
 #define INST_LUI 0x37

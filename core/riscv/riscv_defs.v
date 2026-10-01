@@ -82,15 +82,15 @@
 
 // slli
 `define INST_SLLI 32'h1013
-`define INST_SLLI_MASK 32'hfc00707f
+`define INST_SLLI_MASK 32'hfe00707f
 
 // srli
 `define INST_SRLI 32'h5013
-`define INST_SRLI_MASK 32'hfc00707f
+`define INST_SRLI_MASK 32'hfe00707f
 
 // srai
 `define INST_SRAI 32'h40005013
-`define INST_SRAI_MASK 32'hfc00707f
+`define INST_SRAI_MASK 32'hfe00707f
 
 // lui
 `define INST_LUI 32'h37
