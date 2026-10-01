@@ -141,6 +141,8 @@ public:
 
     void                stats_reset(void);
     void                stats_dump(void);
+    uint64_t            get_cycle_count(void) const { return m_csr_mcycle; }
+    uint64_t            get_instret_count(void) const { return m_csr_minstret; }
 
     bool                error(bool terminal, const char *fmt, ...);
 
@@ -170,11 +172,14 @@ private:
     // CSR - Machine
     uint32_t            m_csr_mepc;
     uint32_t            m_csr_mcause;
+    uint32_t            m_csr_mtval;
     uint32_t            m_csr_msr;
     uint32_t            m_csr_mpriv;
     uint32_t            m_csr_mevec;
     uint32_t            m_csr_mie;
     uint32_t            m_csr_mip;
+    uint64_t            m_csr_mcycle;
+    uint64_t            m_csr_minstret;
     uint64_t            m_csr_mtime;
     uint64_t            m_csr_mtimecmp;
     uint32_t            m_csr_mscratch;
@@ -198,6 +203,9 @@ private:
     // Status
     bool                m_fault;
     bool                m_break;
+    bool                m_instruction_retired;
+    bool                m_mcycle_write;
+    bool                m_minstret_write;
     int                 m_trace;
 
     // Breakpoints

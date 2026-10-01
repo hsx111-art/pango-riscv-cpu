@@ -79,6 +79,7 @@ module riscv_pipe_ctrl
     // Execution stage 1: CSR read result / early exceptions
     ,input [ 31:0]   csr_result_value_e1_i
     ,input           csr_result_write_e1_i
+    ,input           csr_write_e1_i
     ,input [ 31:0]   csr_result_wdata_e1_i
     ,input [  5:0]   csr_result_exception_e1_i
 
@@ -119,6 +120,8 @@ module riscv_pipe_ctrl
     ,output [31:0]   operand_ra_wb_o
     ,output [31:0]   operand_rb_wb_o
     ,output [5:0]    exception_wb_o
+    ,output          instruction_retired_wb_o
+    ,output          pipeline_empty_o
     ,output          csr_write_wb_o
     ,output [11:0]   csr_waddr_wb_o
     ,output [31:0]   csr_wdata_wb_o
@@ -279,7 +282,7 @@ else
 begin
     valid_e2_q      <= valid_e1_q;
     ctrl_e2_q       <= ctrl_e1_q;
-    csr_wr_e2_q     <= csr_result_write_e1_i;
+    csr_wr_e2_q     <= csr_write_e1_i;
     csr_wdata_e2_q  <= csr_result_wdata_e1_i;
     pc_e2_q         <= pc_e1_q;
     npc_e2_q        <= npc_e1_q;
@@ -441,6 +444,15 @@ end
 // Instruction completion (for debug)
 wire complete_wb_w     = ctrl_wb_q[`PCINFO_COMPLETE] & ~issue_stall_i;
 
+// Retire only architecturally completed instructions. Exception entries and
+// the interrupt launch marker are control-flow events, not retired work.
+wire instruction_retired_w = valid_wb_o &&
+                             ~ctrl_wb_q[`PCINFO_INTR] &&
+                             ((exception_wb_q == `EXCEPTION_W'b0) ||
+                              (exception_wb_q == `EXCEPTION_FENCE) ||
+                              ((exception_wb_q >= `EXCEPTION_ERET_U) &&
+                               (exception_wb_q <= `EXCEPTION_ERET_M)));
+
 assign valid_wb_o      = valid_wb_q & ~issue_stall_i;
 assign csr_wb_o        = ctrl_wb_q[`PCINFO_CSR] & ~issue_stall_i; // TODO: Fault disable???
 assign rd_wb_o         = {5{(valid_wb_o && ctrl_wb_q[`PCINFO_RD_VALID] && ~stall_o)}} & opcode_wb_q[`RD_IDX_R];
@@ -451,6 +463,8 @@ assign operand_ra_wb_o = operand_ra_wb_q;
 assign operand_rb_wb_o = operand_rb_wb_q;
 
 assign exception_wb_o  = exception_wb_q;
+assign instruction_retired_wb_o = instruction_retired_w;
+assign pipeline_empty_o = ~valid_e1_q && ~valid_e2_q && ~valid_wb_o;
 
 assign csr_write_wb_o  = csr_wr_wb_q;
 assign csr_waddr_wb_o  = opcode_wb_q[31:20];

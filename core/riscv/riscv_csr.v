@@ -70,6 +70,7 @@ module riscv_csr
     ,input  [  5:0]  csr_writeback_exception_i
     ,input  [ 31:0]  csr_writeback_exception_pc_i
     ,input  [ 31:0]  csr_writeback_exception_addr_i
+    ,input           instruction_retired_i
     ,input  [ 31:0]  cpu_id_i
     ,input  [ 31:0]  reset_vector_i
     ,input           interrupt_inhibit_i
@@ -77,6 +78,7 @@ module riscv_csr
     // Outputs
     ,output [ 31:0]  csr_result_e1_value_o
     ,output          csr_result_e1_write_o
+    ,output          csr_write_e1_o
     ,output [ 31:0]  csr_result_e1_wdata_o
     ,output [  5:0]  csr_result_e1_exception_o
     ,output          branch_csr_request_o
@@ -187,6 +189,7 @@ u_csrfile
     ,.exception_i(csr_writeback_exception_i)
     ,.exception_pc_i(csr_writeback_exception_pc_i)
     ,.exception_addr_i(csr_writeback_exception_addr_i)
+    ,.instruction_retired_i(instruction_retired_i)
 
     // CSR register writes (WB)
     ,.csr_waddr_i(csr_writeback_write_i ? csr_writeback_waddr_i : 12'b0)
@@ -209,6 +212,7 @@ u_csrfile
 // CSR Read Result (E1) / Early exceptions
 //-----------------------------------------------------------------
 reg                     rd_valid_e1_q;
+reg                     csr_write_e1_q;
 reg [ 31:0]             rd_result_e1_q;
 reg [ 31:0]             csr_wdata_e1_q;
 reg [`EXCEPTION_W-1:0]  exception_e1_q;
@@ -220,6 +224,7 @@ always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
 begin
     rd_valid_e1_q   <= 1'b0;
+    csr_write_e1_q  <= 1'b0;
     rd_result_e1_q  <= 32'b0;
     csr_wdata_e1_q  <= 32'b0;
     exception_e1_q  <= `EXCEPTION_W'b0;
@@ -227,6 +232,7 @@ end
 else if (opcode_valid_i)
 begin
     rd_valid_e1_q   <= (set_r || clr_r) && ~csr_fault_r;
+    csr_write_e1_q  <= (set_r || clr_r) && csr_write_r && ~csr_fault_r;
 
     // Invalid instruction / CSR access fault?
     // Record opcode for writing to csr_xtval later.
@@ -264,6 +270,7 @@ end
 else
 begin
     rd_valid_e1_q   <= 1'b0;
+    csr_write_e1_q  <= 1'b0;
     rd_result_e1_q  <= 32'b0;
     csr_wdata_e1_q  <= 32'b0;
     exception_e1_q  <= `EXCEPTION_W'b0;
@@ -271,6 +278,7 @@ end
 
 assign csr_result_e1_value_o     = rd_result_e1_q;
 assign csr_result_e1_write_o     = rd_valid_e1_q;
+assign csr_write_e1_o            = csr_write_e1_q;
 assign csr_result_e1_wdata_o     = csr_wdata_e1_q;
 assign csr_result_e1_exception_o = exception_e1_q;
 

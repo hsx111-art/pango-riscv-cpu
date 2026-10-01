@@ -55,6 +55,7 @@ module riscv_csr_regfile
 
     ,input           ext_intr_i
     ,input           timer_intr_i
+    ,input           instruction_retired_i
 
     ,input [31:0]    cpu_id_i
     ,input [31:0]    misa_i
@@ -102,6 +103,8 @@ reg [31:0]  csr_mie_q;
 reg [1:0]   csr_mpriv_q;
 reg [31:0]  csr_mcycle_q;
 reg [31:0]  csr_mcycle_h_q;
+reg [31:0]  csr_minstret_q;
+reg [31:0]  csr_minstret_h_q;
 reg [31:0]  csr_mscratch_q;
 reg [31:0]  csr_mtval_q;
 reg [31:0]  csr_mtimecmp_q;
@@ -171,6 +174,28 @@ else if (csr_waddr_i == `CSR_MIP || csr_waddr_i == `CSR_SIP || (|exception_i))
 
 wire buffer_mip_w = (csr_ren_i && csr_raddr_i == `CSR_MIP) | (csr_ren_i && csr_raddr_i == `CSR_SIP) | csr_mip_upd_q;
 
+// Counter reads must observe an older CSR write and the retirement event that
+// may be committing in the same cycle. Without this forwarding, a CSR read
+// immediately following a counter write or a low-half overflow can see the
+// pre-commit value from the pipeline.
+wire [31:0] csr_mcycle_read_w =
+    (csr_waddr_i == `CSR_MCYCLE)  ? csr_wdata_i :
+    (csr_waddr_i == `CSR_MCYCLEH) ? csr_mcycle_q :
+    csr_mcycle_q;
+wire [31:0] csr_mcycle_h_read_w =
+    (csr_waddr_i == `CSR_MCYCLEH) ? csr_wdata_i :
+    (csr_waddr_i == `CSR_MCYCLE)  ? csr_mcycle_h_q :
+    csr_mcycle_h_q;
+wire [31:0] csr_minstret_read_w =
+    (csr_waddr_i == `CSR_MINSTRET) ? csr_wdata_i :
+    (csr_waddr_i == `CSR_MINSTRETH) ? csr_minstret_q :
+    (instruction_retired_i ? csr_minstret_q + 32'd1 : csr_minstret_q);
+wire [31:0] csr_minstret_h_read_w =
+    (csr_waddr_i == `CSR_MINSTRETH) ? csr_wdata_i :
+    (csr_waddr_i == `CSR_MINSTRET) ? csr_minstret_h_q :
+    (instruction_retired_i && csr_minstret_q == 32'hFFFFFFFF ?
+        csr_minstret_h_q + 32'd1 : csr_minstret_h_q);
+
 //-----------------------------------------------------------------
 // CSR Read Port
 //-----------------------------------------------------------------
@@ -190,8 +215,15 @@ begin
     `CSR_MIP:      rdata_r = csr_mip_q & `CSR_MIP_MASK;
     `CSR_MIE:      rdata_r = csr_mie_q & `CSR_MIE_MASK;
     `CSR_MCYCLE,
-    `CSR_MTIME:    rdata_r = csr_mcycle_q;
-    `CSR_MTIMEH:   rdata_r = csr_mcycle_h_q;
+    `CSR_CYCLE,
+    `CSR_MTIME:    rdata_r = csr_mcycle_read_w;
+    `CSR_MCYCLEH,
+    `CSR_CYCLEH,
+    `CSR_MTIMEH:   rdata_r = csr_mcycle_h_read_w;
+    `CSR_MINSTRET,
+    `CSR_INSTRET:  rdata_r = csr_minstret_read_w;
+    `CSR_MINSTRETH,
+    `CSR_INSTRETH: rdata_r = csr_minstret_h_read_w;
     `CSR_MHARTID:  rdata_r = cpu_id_i;
     `CSR_MISA:     rdata_r = misa_i;
     `CSR_MEDELEG:  rdata_r = SUPPORT_SUPER ? (csr_medeleg_q & `CSR_MEDELEG_MASK) : 32'b0;
@@ -230,6 +262,9 @@ reg [31:0]  csr_mip_r;
 reg [31:0]  csr_mie_r;
 reg [1:0]   csr_mpriv_r;
 reg [31:0]  csr_mcycle_r;
+reg [31:0]  csr_mcycle_h_r;
+reg [31:0]  csr_minstret_r;
+reg [31:0]  csr_minstret_h_r;
 reg [31:0]  csr_mscratch_r;
 reg [31:0]  csr_mtimecmp_r;
 reg         csr_mtime_ie_r;
@@ -264,6 +299,13 @@ begin
     csr_mpriv_r     = csr_mpriv_q;
     csr_mscratch_r  = csr_mscratch_q;
     csr_mcycle_r    = csr_mcycle_q + 32'd1;
+    csr_mcycle_h_r  = csr_mcycle_h_q;
+    csr_minstret_r  = csr_minstret_q + (instruction_retired_i ? 32'd1 : 32'd0);
+    csr_minstret_h_r = csr_minstret_h_q;
+    if (csr_mcycle_q == 32'hFFFFFFFF)
+        csr_mcycle_h_r = csr_mcycle_h_q + 32'd1;
+    if (instruction_retired_i && csr_minstret_q == 32'hFFFFFFFF)
+        csr_minstret_h_r = csr_minstret_h_q + 32'd1;
     csr_mtimecmp_r  = csr_mtimecmp_q;
     csr_mtime_ie_r  = csr_mtime_ie_q;
     csr_medeleg_r   = csr_medeleg_q;
@@ -443,6 +485,26 @@ begin
         `CSR_MIE:      csr_mie_r      = csr_wdata_i & `CSR_MIE_MASK;
         `CSR_MEDELEG:  csr_medeleg_r  = csr_wdata_i & `CSR_MEDELEG_MASK;
         `CSR_MIDELEG:  csr_mideleg_r  = csr_wdata_i & `CSR_MIDELEG_MASK;
+        `CSR_MCYCLE:
+        begin
+            csr_mcycle_r   = csr_wdata_i & `CSR_MCYCLE_MASK;
+            csr_mcycle_h_r = csr_mcycle_h_q;
+        end
+        `CSR_MCYCLEH:
+        begin
+            csr_mcycle_r   = csr_mcycle_q;
+            csr_mcycle_h_r = csr_wdata_i & `CSR_MCYCLEH_MASK;
+        end
+        `CSR_MINSTRET:
+        begin
+            csr_minstret_r   = csr_wdata_i & `CSR_MINSTRET_MASK;
+            csr_minstret_h_r = csr_minstret_h_q;
+        end
+        `CSR_MINSTRETH:
+        begin
+            csr_minstret_r   = csr_minstret_q;
+            csr_minstret_h_r = csr_wdata_i & `CSR_MINSTRETH_MASK;
+        end
         // Non-std behaviour
         `CSR_MTIMECMP:
         begin
@@ -508,6 +570,8 @@ begin
     csr_mpriv_q        <= `PRIV_MACHINE;
     csr_mcycle_q       <= 32'b0;
     csr_mcycle_h_q     <= 32'b0;
+    csr_minstret_q     <= 32'b0;
+    csr_minstret_h_q   <= 32'b0;
     csr_mscratch_q     <= 32'b0;
     csr_mtimecmp_q     <= 32'b0;
     csr_mtime_ie_q     <= 1'b0;
@@ -536,6 +600,9 @@ begin
     csr_mie_q          <= csr_mie_r;
     csr_mpriv_q        <= SUPPORT_SUPER ? csr_mpriv_r : `PRIV_MACHINE;
     csr_mcycle_q       <= csr_mcycle_r;
+    csr_mcycle_h_q     <= csr_mcycle_h_r;
+    csr_minstret_q     <= csr_minstret_r;
+    csr_minstret_h_q   <= csr_minstret_h_r;
     csr_mscratch_q     <= csr_mscratch_r;
     csr_mtimecmp_q     <= SUPPORT_MTIMECMP ? csr_mtimecmp_r : 32'b0;
     csr_mtime_ie_q     <= SUPPORT_MTIMECMP ? csr_mtime_ie_r : 1'b0;
@@ -552,9 +619,6 @@ begin
 
     csr_mip_next_q     <= buffer_mip_w ? csr_mip_next_r : 32'b0;
 
-    // Increment upper cycle counter on lower 32-bit overflow
-    if (csr_mcycle_q == 32'hFFFFFFFF)
-        csr_mcycle_h_q <= csr_mcycle_h_q + 32'd1;
 
 `ifdef HAS_SIM_CTRL
     // CSR SIM_CTRL (or DSCRATCH)
@@ -636,6 +700,12 @@ assign csr_target_o = branch_target_r;
 function [31:0] get_mcycle; /*verilator public*/
 begin
     get_mcycle = csr_mcycle_q;
+end
+endfunction
+
+function [31:0] get_minstret; /*verilator public*/
+begin
+    get_minstret = csr_minstret_q;
 end
 endfunction
 `endif

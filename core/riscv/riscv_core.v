@@ -112,6 +112,7 @@ wire  [  1:0]  branch_d_exec_priv_w;
 wire           mmu_ifetch_valid_w;
 wire           csr_opcode_invalid_w;
 wire  [  5:0]  csr_writeback_exception_w;
+wire           instruction_retired_w;
 wire           fetch_instr_mul_w;
 wire           branch_exec_is_ret_w;
 wire  [ 31:0]  csr_writeback_exception_addr_w;
@@ -201,6 +202,7 @@ wire           fetch_instr_csr_w;
 wire           lsu_opcode_valid_w;
 wire  [ 31:0]  fetch_dec_instr_w;
 wire           csr_result_e1_write_w;
+wire           csr_write_e1_w;
 wire  [ 31:0]  csr_opcode_opcode_w;
 wire           fetch_instr_div_w;
 wire  [ 31:0]  fetch_instr_w;
@@ -432,10 +434,12 @@ u_csr
     ,.cpu_id_i(cpu_id_i)
     ,.reset_vector_i(reset_vector_i)
     ,.interrupt_inhibit_i(interrupt_inhibit_w)
+    ,.instruction_retired_i(instruction_retired_w)
 
     // Outputs
     ,.csr_result_e1_value_o(csr_result_e1_value_w)
     ,.csr_result_e1_write_o(csr_result_e1_write_w)
+    ,.csr_write_e1_o(csr_write_e1_w)
     ,.csr_result_e1_wdata_o(csr_result_e1_wdata_w)
     ,.csr_result_e1_exception_o(csr_result_e1_exception_w)
     ,.branch_csr_request_o(branch_csr_request_w)
@@ -544,6 +548,7 @@ u_issue
     ,.writeback_div_value_i(writeback_div_value_w)
     ,.csr_result_e1_value_i(csr_result_e1_value_w)
     ,.csr_result_e1_write_i(csr_result_e1_write_w)
+    ,.csr_write_e1_i(csr_write_e1_w)
     ,.csr_result_e1_wdata_i(csr_result_e1_wdata_w)
     ,.csr_result_e1_exception_i(csr_result_e1_exception_w)
     ,.lsu_stall_i(lsu_stall_w)
@@ -597,6 +602,7 @@ u_issue
     ,.csr_writeback_exception_o(csr_writeback_exception_w)
     ,.csr_writeback_exception_pc_o(csr_writeback_exception_pc_w)
     ,.csr_writeback_exception_addr_o(csr_writeback_exception_addr_w)
+    ,.instruction_retired_o(instruction_retired_w)
     ,.exec_hold_o(exec_hold_w)
     ,.mul_hold_o(mul_hold_w)
     ,.interrupt_inhibit_o(interrupt_inhibit_w)

@@ -144,6 +144,7 @@ void Riscv::set_register(int r, uint32_t val)
     else if (r == RISCV_REGNO_PC) m_pc     = val;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MEPC)) m_csr_mepc = val;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MCAUSE)) m_csr_mcause = val;
+    else if (r == (RISCV_REGNO_CSR0 + CSR_MTVAL)) m_csr_mtval = val;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MSTATUS)) m_csr_msr = val;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MTVEC)) m_csr_mevec = val;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MIE)) m_csr_mie = val;
@@ -171,6 +172,7 @@ uint32_t Riscv::get_register(int r)
     else if (r == RISCV_REGNO_PC) return m_pc;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MEPC)) return m_csr_mepc;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MCAUSE)) return m_csr_mcause;
+    else if (r == (RISCV_REGNO_CSR0 + CSR_MTVAL)) return m_csr_mtval;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MSTATUS)) return m_csr_msr;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MTVEC)) return m_csr_mevec;
     else if (r == (RISCV_REGNO_CSR0 + CSR_MIE)) return m_csr_mie;
@@ -254,7 +256,10 @@ void Riscv::reset(uint32_t start_addr)
     m_csr_mie      = 0;
     m_csr_mip      = 0;
     m_csr_mcause   = 0;
+    m_csr_mtval    = 0;
     m_csr_mevec    = 0;
+    m_csr_mcycle   = 0;
+    m_csr_minstret = 0;
     m_csr_mtime    = 0;
     m_csr_mtimecmp = 0;
     m_csr_mscratch = 0;
@@ -268,6 +273,9 @@ void Riscv::reset(uint32_t start_addr)
 
     m_fault       = false;
     m_break       = false;
+    m_instruction_retired = false;
+    m_mcycle_write = false;
+    m_minstret_write = false;
     m_trace       = 0;
 
     stats_reset();
@@ -747,6 +755,7 @@ uint32_t Riscv::access_csr(uint32_t address, uint32_t data, bool set, bool clr)
         CSR_STD(MEPC,    m_csr_mepc)
         CSR_STD(MTVEC,   m_csr_mevec)
         CSR_STD(MCAUSE,  m_csr_mcause)
+        CSR_STD(MTVAL,   m_csr_mtval)
         CSR_STD(MSTATUS, m_csr_msr)
         CSR_STD(MIP,     m_csr_mip)
         CSR_STD(MIE,     m_csr_mie)
@@ -755,6 +764,106 @@ uint32_t Riscv::access_csr(uint32_t address, uint32_t data, bool set, bool clr)
         CSR_STD(MEDELEG, m_csr_medeleg)
         CSR_STD(MSCRATCH,m_csr_mscratch)
         CSR_CONST(MHARTID,  MHARTID_VALUE)
+        case CSR_MCYCLE:
+        {
+            result = (uint32_t)m_csr_mcycle;
+            if (set && clr)
+            {
+                m_csr_mcycle = (m_csr_mcycle & 0xFFFFFFFF00000000ULL) | (uint64_t)data;
+                m_mcycle_write = true;
+            }
+            else if (set)
+            {
+                m_csr_mcycle |= (uint64_t)data;
+                if (data != 0)
+                    m_mcycle_write = true;
+            }
+            else if (clr)
+            {
+                m_csr_mcycle &= ~((uint64_t)data);
+                if (data != 0)
+                    m_mcycle_write = true;
+            }
+        }
+        break;
+        case CSR_MCYCLEH:
+        {
+            result = (uint32_t)(m_csr_mcycle >> 32);
+            if (set && clr)
+            {
+                m_csr_mcycle = (m_csr_mcycle & 0x00000000FFFFFFFFULL) | ((uint64_t)data << 32);
+                m_mcycle_write = true;
+            }
+            else if (set)
+            {
+                m_csr_mcycle |= ((uint64_t)data << 32);
+                if (data != 0)
+                    m_mcycle_write = true;
+            }
+            else if (clr)
+            {
+                m_csr_mcycle &= ~((uint64_t)data << 32);
+                if (data != 0)
+                    m_mcycle_write = true;
+            }
+        }
+        break;
+        case CSR_MINSTRET:
+        {
+            result = (uint32_t)m_csr_minstret;
+            if (set && clr)
+            {
+                m_csr_minstret = (m_csr_minstret & 0xFFFFFFFF00000000ULL) | (uint64_t)data;
+                m_minstret_write = true;
+            }
+            else if (set)
+            {
+                m_csr_minstret |= (uint64_t)data;
+                if (data != 0)
+                    m_minstret_write = true;
+            }
+            else if (clr)
+            {
+                m_csr_minstret &= ~((uint64_t)data);
+                if (data != 0)
+                    m_minstret_write = true;
+            }
+        }
+        break;
+        case CSR_MINSTRETH:
+        {
+            result = (uint32_t)(m_csr_minstret >> 32);
+            if (set && clr)
+            {
+                m_csr_minstret = (m_csr_minstret & 0x00000000FFFFFFFFULL) | ((uint64_t)data << 32);
+                m_minstret_write = true;
+            }
+            else if (set)
+            {
+                m_csr_minstret |= ((uint64_t)data << 32);
+                if (data != 0)
+                    m_minstret_write = true;
+            }
+            else if (clr)
+            {
+                m_csr_minstret &= ~((uint64_t)data << 32);
+                if (data != 0)
+                    m_minstret_write = true;
+            }
+        }
+        break;
+        case CSR_CYCLE:
+            result = (uint32_t)m_csr_mcycle;
+            break;
+        case CSR_CYCLEH:
+            result = (uint32_t)(m_csr_mcycle >> 32);
+            break;
+        case CSR_INSTRET:
+            result = (uint32_t)m_csr_minstret;
+            break;
+        case CSR_INSTRETH:
+            result = (uint32_t)(m_csr_minstret >> 32);
+            break;
         //--------------------------------------------------------
         // Standard - Supervisor
         //--------------------------------------------------------
@@ -873,6 +982,7 @@ void Riscv::exception(uint32_t cause, uint32_t pc, uint32_t badaddr /*= 0*/)
 //-----------------------------------------------------------------
 void Riscv::execute(void)
 {
+    m_instruction_retired = false;
     uint32_t phy_pc = m_pc;
 
 #ifdef CONFIG_MMU
@@ -1513,6 +1623,10 @@ void Riscv::execute(void)
         take_exception = true;
     }
 
+    // A synchronous exception prevents the instruction from retiring. An
+    // interrupt sampled after a completed instruction does not.
+    m_instruction_retired = !take_exception;
+
     if (rd != 0)
         m_gpr[rd] = reg_rd;
 
@@ -1559,9 +1673,18 @@ void Riscv::execute(void)
 void Riscv::step(void)
 {
     m_stats[STATS_INSTRUCTIONS]++;
+    m_mcycle_write = false;
+    m_minstret_write = false;
 
     // Execute instruction at current PC
     execute();
+
+    // Architectural counters advance once per simulator step. A CSR write
+    // takes precedence over the implicit increment for that instruction.
+    if (!m_mcycle_write)
+        m_csr_mcycle++;
+    if (m_instruction_retired && !m_minstret_write)
+        m_csr_minstret++;
 
     // Increment timer counter
     m_csr_mtime++;
@@ -1619,7 +1742,11 @@ void Riscv::stats_dump(void)
     else
     {
         printf( "Runtime Stats:\n");
-        printf( "- Total Instructions %d\n", m_stats[STATS_INSTRUCTIONS]);
+        printf( "- Simulator Steps %d\n", m_stats[STATS_INSTRUCTIONS]);
+        printf( "- Cycle Count (mcycle) %llu\n", (unsigned long long)m_csr_mcycle);
+        printf( "- Retired Instructions (minstret) %llu\n", (unsigned long long)m_csr_minstret);
+        if (m_csr_minstret > 0)
+            printf( "- CPI %.3f\n", (double)m_csr_mcycle / (double)m_csr_minstret);
         if (m_stats[STATS_INSTRUCTIONS] > 0)
         {
             printf( "- Loads %d (%d%%)\n",  m_stats[STATS_LOADS],  (m_stats[STATS_LOADS] * 100)  / m_stats[STATS_INSTRUCTIONS]);

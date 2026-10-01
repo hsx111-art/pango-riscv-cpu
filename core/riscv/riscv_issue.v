@@ -93,6 +93,7 @@ module riscv_issue
     ,input  [ 31:0]  writeback_div_value_i
     ,input  [ 31:0]  csr_result_e1_value_i
     ,input           csr_result_e1_write_i
+    ,input           csr_write_e1_i
     ,input  [ 31:0]  csr_result_e1_wdata_i
     ,input  [  5:0]  csr_result_e1_exception_i
     ,input           lsu_stall_i
@@ -146,6 +147,7 @@ module riscv_issue
     ,output [  5:0]  csr_writeback_exception_o
     ,output [ 31:0]  csr_writeback_exception_pc_o
     ,output [ 31:0]  csr_writeback_exception_addr_o
+    ,output          instruction_retired_o
     ,output          exec_hold_o
     ,output          mul_hold_o
     ,output          interrupt_inhibit_o
@@ -231,6 +233,8 @@ wire [31:0] pipe_opc_wb_w;
 wire [31:0] pipe_ra_val_wb_w;
 wire [31:0] pipe_rb_val_wb_w;
 wire [`EXCEPTION_W-1:0] pipe_exception_wb_w;
+wire                     pipe_instruction_retired_w;
+wire                     pipe_empty_w;
 
 wire [`EXCEPTION_W-1:0] issue_fault_w = fetch_fault_fetch_i ? `EXCEPTION_FAULT_FETCH:
                                         fetch_fault_page_i  ? `EXCEPTION_PAGE_FAULT_INST: `EXCEPTION_W'b0;
@@ -269,6 +273,7 @@ u_pipe_ctrl
     ,.alu_result_e1_i(writeback_exec_value_i)
     ,.csr_result_value_e1_i(csr_result_e1_value_i)
     ,.csr_result_write_e1_i(csr_result_e1_write_i)
+    ,.csr_write_e1_i(csr_write_e1_i)
     ,.csr_result_wdata_e1_i(csr_result_e1_wdata_i)
     ,.csr_result_exception_e1_i(csr_result_e1_exception_i)
 
@@ -314,6 +319,8 @@ u_pipe_ctrl
     ,.operand_ra_wb_o(pipe_ra_val_wb_w)
     ,.operand_rb_wb_o(pipe_rb_val_wb_w)
     ,.exception_wb_o(pipe_exception_wb_w)
+    ,.instruction_retired_wb_o(pipe_instruction_retired_w)
+    ,.pipeline_empty_o(pipe_empty_w)
     ,.csr_write_wb_o(csr_writeback_write_o)
     ,.csr_waddr_wb_o(csr_writeback_waddr_o)
     ,.csr_wdata_wb_o(csr_writeback_wdata_o)   
@@ -328,6 +335,7 @@ assign mul_hold_o  = stall_w;
 assign csr_writeback_exception_o      = pipe_exception_wb_w;
 assign csr_writeback_exception_pc_o   = pipe_pc_wb_w;
 assign csr_writeback_exception_addr_o = pipe_result_wb_w;
+assign instruction_retired_o          = pipe_instruction_retired_w;
 
 //-------------------------------------------------------------
 // Blocking events (division, CSR unit access)
@@ -393,7 +401,8 @@ begin
         scoreboard_r = 32'hFFFFFFFF;
 
     // Stall - no issues...
-    if (lsu_stall_i || stall_w || div_pending_q || csr_pending_q)
+    if (lsu_stall_i || stall_w || div_pending_q || csr_pending_q ||
+        (issue_csr_w && ~pipe_empty_w))
         ;
     // Primary slot (lsu, branch, alu, mul, div, csr)
     else if (opcode_valid_w &&
