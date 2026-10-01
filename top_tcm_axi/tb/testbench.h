@@ -32,6 +32,22 @@ public:
     int                          m_irq_cycle;
     unsigned                     m_step_count;
     bool                         m_metrics_reported;
+    unsigned long long           m_profile_issue;
+    unsigned long long           m_profile_retire;
+    unsigned long long           m_profile_lsu_stall;
+    unsigned long long           m_profile_pipe_stall;
+    unsigned long long           m_profile_div_hold;
+    unsigned long long           m_profile_csr_hold;
+    unsigned long long           m_profile_load_issue;
+    unsigned long long           m_profile_store_issue;
+    unsigned long long           m_profile_mul_issue;
+    unsigned long long           m_profile_div_issue;
+    unsigned long long           m_profile_csr_issue;
+    unsigned long long           m_profile_branch;
+    unsigned long long           m_profile_branch_taken;
+    unsigned long long           m_profile_redirect;
+    unsigned long long           m_profile_interrupt;
+    unsigned long long           m_profile_issue_blocked;
     //-----------------------------------------------------------------
     // Signals
     //-----------------------------------------------------------------    
@@ -70,6 +86,45 @@ public:
         double cpi = minstret ? (double)mcycle / (double)minstret : 0.0;
         printf("WSL_METRICS steps=%u retired=%u mcycle=%08x minstret=%08x cpi=%.6f\n",
                m_step_count, minstret, mcycle, minstret, cpi);
+        printf("WSL_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
+               m_step_count,
+               m_profile_issue,
+               m_profile_retire,
+               m_profile_lsu_stall,
+               m_profile_pipe_stall,
+               m_profile_div_hold,
+               m_profile_csr_hold,
+               m_profile_load_issue,
+               m_profile_store_issue,
+               m_profile_mul_issue,
+               m_profile_div_issue,
+               m_profile_csr_issue,
+               m_profile_branch,
+               m_profile_branch_taken,
+               m_profile_redirect,
+               m_profile_interrupt,
+               m_profile_issue_blocked);
+    }
+
+    void sample_profile(void)
+    {
+        auto issue = m_dut->m_rtl->v->u_core->u_issue;
+        m_profile_issue          += issue->profile_issue();
+        m_profile_retire        += issue->profile_retire();
+        m_profile_lsu_stall     += issue->profile_lsu_stall();
+        m_profile_pipe_stall    += issue->profile_pipe_stall();
+        m_profile_div_hold      += issue->profile_div_hold();
+        m_profile_csr_hold      += issue->profile_csr_hold();
+        m_profile_load_issue    += issue->profile_load_issue();
+        m_profile_store_issue   += issue->profile_store_issue();
+        m_profile_mul_issue     += issue->profile_mul_issue();
+        m_profile_div_issue     += issue->profile_div_issue();
+        m_profile_csr_issue     += issue->profile_csr_issue();
+        m_profile_branch        += issue->profile_branch();
+        m_profile_branch_taken += issue->profile_branch_taken();
+        m_profile_redirect      += issue->profile_redirect();
+        m_profile_interrupt     += issue->profile_interrupt();
+        m_profile_issue_blocked += issue->profile_issue_blocked();
     }
 
     //-----------------------------------------------------------------
@@ -81,6 +136,22 @@ public:
         m_irq_cycle  = -1;
         m_step_count = 0;
         m_metrics_reported = false;
+        m_profile_issue = 0;
+        m_profile_retire = 0;
+        m_profile_lsu_stall = 0;
+        m_profile_pipe_stall = 0;
+        m_profile_div_hold = 0;
+        m_profile_csr_hold = 0;
+        m_profile_load_issue = 0;
+        m_profile_store_issue = 0;
+        m_profile_mul_issue = 0;
+        m_profile_div_issue = 0;
+        m_profile_csr_issue = 0;
+        m_profile_branch = 0;
+        m_profile_branch_taken = 0;
+        m_profile_redirect = 0;
+        m_profile_interrupt = 0;
+        m_profile_issue_blocked = 0;
         const char *irq_cycle = getenv("IRQ_CYCLE");
         if (irq_cycle && *irq_cycle)
             m_irq_cycle = strtol(irq_cycle, NULL, 0);
@@ -150,6 +221,7 @@ public:
             intr_in.write(0);
         wait();
         intr_in.write(0);
+        sample_profile();
         m_step_count++;
     }
     //-----------------------------------------------------------------
@@ -158,6 +230,22 @@ public:
     void reset(uint32_t addr)
     {
         m_step_count = 0;
+        m_profile_issue = 0;
+        m_profile_retire = 0;
+        m_profile_lsu_stall = 0;
+        m_profile_pipe_stall = 0;
+        m_profile_div_hold = 0;
+        m_profile_csr_hold = 0;
+        m_profile_load_issue = 0;
+        m_profile_store_issue = 0;
+        m_profile_mul_issue = 0;
+        m_profile_div_issue = 0;
+        m_profile_csr_issue = 0;
+        m_profile_branch = 0;
+        m_profile_branch_taken = 0;
+        m_profile_redirect = 0;
+        m_profile_interrupt = 0;
+        m_profile_issue_blocked = 0;
         intr_in.write(0);
         rst_cpu_in.write(true);
         wait();

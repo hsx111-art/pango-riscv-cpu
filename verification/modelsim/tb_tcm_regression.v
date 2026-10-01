@@ -63,6 +63,22 @@ module tb_tcm_regression;
     reg          fail_seen;
     integer      irq_cycle;
     integer      retired_count;
+    integer      profile_issue_count;
+    integer      profile_retire_count;
+    integer      profile_lsu_stall_count;
+    integer      profile_pipe_stall_count;
+    integer      profile_div_hold_count;
+    integer      profile_csr_hold_count;
+    integer      profile_load_count;
+    integer      profile_store_count;
+    integer      profile_mul_count;
+    integer      profile_div_count;
+    integer      profile_csr_count;
+    integer      profile_branch_count;
+    integer      profile_branch_taken_count;
+    integer      profile_redirect_count;
+    integer      profile_interrupt_count;
+    integer      profile_issue_blocked_count;
     real         cpi_value;
 
     riscv_tcm_top #(
@@ -165,6 +181,22 @@ module tb_tcm_regression;
         axi_t_rready_i = 1'b0;
         cycle_count = 0;
         retired_count = 0;
+        profile_issue_count = 0;
+        profile_retire_count = 0;
+        profile_lsu_stall_count = 0;
+        profile_pipe_stall_count = 0;
+        profile_div_hold_count = 0;
+        profile_csr_hold_count = 0;
+        profile_load_count = 0;
+        profile_store_count = 0;
+        profile_mul_count = 0;
+        profile_div_count = 0;
+        profile_csr_count = 0;
+        profile_branch_count = 0;
+        profile_branch_taken_count = 0;
+        profile_redirect_count = 0;
+        profile_interrupt_count = 0;
+        profile_issue_blocked_count = 0;
         pass_seen = 1'b0;
         fail_seen = 1'b0;
 
@@ -182,8 +214,45 @@ module tb_tcm_regression;
     // Sample the writeback request one half-cycle earlier so ModelSim can
     // classify the standard test before the RTL terminates the run.
     always @(negedge clk_i) begin
-        if (!rst_i && dut.u_core.u_issue.u_pipe_ctrl.instruction_retired_w)
-            retired_count = retired_count + 1;
+        if (!rst_i) begin
+            if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.opcode_accept_r)
+                profile_issue_count = profile_issue_count + 1;
+            if (dut.u_core.u_issue.instruction_retired_o) begin
+                retired_count = retired_count + 1;
+                profile_retire_count = profile_retire_count + 1;
+            end
+            if (dut.u_core.u_issue.lsu_stall_i)
+                profile_lsu_stall_count = profile_lsu_stall_count + 1;
+            if (dut.u_core.u_issue.exec_hold_o)
+                profile_pipe_stall_count = profile_pipe_stall_count + 1;
+            if (dut.u_core.u_issue.div_pending_q)
+                profile_div_hold_count = profile_div_hold_count + 1;
+            if (dut.u_core.u_issue.csr_pending_q)
+                profile_csr_hold_count = profile_csr_hold_count + 1;
+            if (dut.u_core.u_issue.u_pipe_ctrl.load_e1_o)
+                profile_load_count = profile_load_count + 1;
+            if (dut.u_core.u_issue.u_pipe_ctrl.store_e1_o)
+                profile_store_count = profile_store_count + 1;
+            if (dut.u_core.u_issue.u_pipe_ctrl.mul_e1_o)
+                profile_mul_count = profile_mul_count + 1;
+            if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.issue_div_w)
+                profile_div_count = profile_div_count + 1;
+            if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.issue_csr_w)
+                profile_csr_count = profile_csr_count + 1;
+            if (dut.u_core.u_issue.branch_exec_request_i)
+                profile_branch_count = profile_branch_count + 1;
+            if (dut.u_core.u_issue.branch_exec_is_taken_i)
+                profile_branch_taken_count = profile_branch_taken_count + 1;
+            if (dut.u_core.u_issue.branch_request_o)
+                profile_redirect_count = profile_redirect_count + 1;
+            if (dut.u_core.u_issue.take_interrupt_i)
+                profile_interrupt_count = profile_interrupt_count + 1;
+            if (dut.u_core.u_issue.opcode_valid_w && !dut.u_core.u_issue.opcode_accept_r &&
+                (dut.u_core.u_issue.lsu_stall_i || dut.u_core.u_issue.stall_w ||
+                 dut.u_core.u_issue.div_pending_q || dut.u_core.u_issue.csr_pending_q ||
+                 (dut.u_core.u_issue.issue_csr_w && !dut.u_core.u_issue.u_pipe_ctrl.pipeline_empty_o)))
+                profile_issue_blocked_count = profile_issue_blocked_count + 1;
+        end
         if (!rst_i && irq_cycle >= 0) begin
             if (cycle_count == irq_cycle)
                 intr_i[0] = 1'b1;
@@ -214,6 +283,7 @@ module tb_tcm_regression;
                     else
                         cpi_value = 0.0;
                     $display("MODELSIM_METRICS cycles=%0d retired=%0d retired_probe=%0d mcycle=%08x minstret=%08x cpi=%0.6f", cycle_count, dut.u_core.u_csr.u_csrfile.csr_minstret_q, retired_count, dut.u_core.u_csr.u_csrfile.csr_mcycle_q, dut.u_core.u_csr.u_csrfile.csr_minstret_q, cpi_value);
+                    $display("MODELSIM_PROFILE cycles=%0d issue=%0d retire=%0d lsu_stall=%0d pipe_stall=%0d div_hold=%0d csr_hold=%0d load=%0d store=%0d mul=%0d div=%0d csr=%0d branch=%0d branch_taken=%0d redirect=%0d interrupt=%0d issue_blocked=%0d", cycle_count, profile_issue_count, profile_retire_count, profile_lsu_stall_count, profile_pipe_stall_count, profile_div_hold_count, profile_csr_hold_count, profile_load_count, profile_store_count, profile_mul_count, profile_div_count, profile_csr_count, profile_branch_count, profile_branch_taken_count, profile_redirect_count, profile_interrupt_count, profile_issue_blocked_count);
                     $display("MODELSIM_TEST_COMPLETE");
                     $finish;
                 end

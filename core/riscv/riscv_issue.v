@@ -610,6 +610,92 @@ begin
     complete_exception = pipe_exception_wb_w;
 end
 endfunction
+
+// Verification-only observability for the performance baseline. These
+// functions expose existing control signals to the SystemC/Verilator harness
+// without adding state or changing the synthesized datapath.
+function [0:0] profile_issue; /*verilator public*/
+begin
+    profile_issue = opcode_issue_r && opcode_accept_r;
+end
+endfunction
+function [0:0] profile_retire; /*verilator public*/
+begin
+    profile_retire = pipe_instruction_retired_w;
+end
+endfunction
+function [0:0] profile_lsu_stall; /*verilator public*/
+begin
+    profile_lsu_stall = lsu_stall_i;
+end
+endfunction
+function [0:0] profile_pipe_stall; /*verilator public*/
+begin
+    profile_pipe_stall = stall_w;
+end
+endfunction
+function [0:0] profile_div_hold; /*verilator public*/
+begin
+    profile_div_hold = div_pending_q;
+end
+endfunction
+function [0:0] profile_csr_hold; /*verilator public*/
+begin
+    profile_csr_hold = csr_pending_q;
+end
+endfunction
+function [0:0] profile_load_issue; /*verilator public*/
+begin
+    profile_load_issue = pipe_load_e1_w;
+end
+endfunction
+function [0:0] profile_store_issue; /*verilator public*/
+begin
+    profile_store_issue = pipe_store_e1_w;
+end
+endfunction
+function [0:0] profile_mul_issue; /*verilator public*/
+begin
+    profile_mul_issue = pipe_mul_e1_w;
+end
+endfunction
+function [0:0] profile_div_issue; /*verilator public*/
+begin
+    profile_div_issue = opcode_issue_r && issue_div_w;
+end
+endfunction
+function [0:0] profile_csr_issue; /*verilator public*/
+begin
+    profile_csr_issue = opcode_issue_r && issue_csr_w;
+end
+endfunction
+function [0:0] profile_branch; /*verilator public*/
+begin
+    profile_branch = branch_exec_request_i;
+end
+endfunction
+function [0:0] profile_branch_taken; /*verilator public*/
+begin
+    profile_branch_taken = branch_exec_is_taken_i;
+end
+endfunction
+function [0:0] profile_redirect; /*verilator public*/
+begin
+    profile_redirect = branch_request_o;
+end
+endfunction
+function [0:0] profile_interrupt; /*verilator public*/
+begin
+    profile_interrupt = take_interrupt_i;
+end
+endfunction
+function [0:0] profile_issue_blocked; /*verilator public*/
+begin
+    profile_issue_blocked = opcode_valid_w && !opcode_accept_r &&
+                           (lsu_stall_i || stall_w || div_pending_q ||
+                            csr_pending_q || (issue_csr_w && ~pipe_empty_w));
+end
+endfunction
 `endif
 
 
