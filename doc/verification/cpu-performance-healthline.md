@@ -205,6 +205,9 @@ fetch_backpressure=27813 fetch_redirect=42530
 These counts identify remaining candidate classes, not directly attributable
 cycle savings. The next experiment should isolate the CoreMark interval and
 separate load/dependency stalls from redirect recovery before changing issue
+or scoreboard semantics. Predictor expansion remains rejected as a default
+direction because the controlled predictor-on smoke result was slower.
+
 ## Not measured or not ready to claim
 
 The following are intentionally open:
