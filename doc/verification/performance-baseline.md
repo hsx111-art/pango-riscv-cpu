@@ -115,7 +115,9 @@ COREMARK_METRICS cycles=384726 retired=315440 cpi_x1000=1219
 
 The one-iteration smoke run also prints `Total time (secs): 0` and the
 official CoreMark source reports that the minimum ten-second reporting rule
-was not met. This is intentional: the result proves the workload, CRCs,
+was not met and consequently prints `Errors detected`. The two runners now
+classify that exact short-run validity notice separately from CRC or port
+errors. This is intentional: the result proves the workload, CRCs,
 bare-metal port, TCM image path, and counter interval, but it is **not** a
 reportable CoreMark score.
 

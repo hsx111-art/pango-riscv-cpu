@@ -103,6 +103,9 @@ The two harnesses sample the same event classes:
 ```text
 issue retire lsu_stall pipe_stall div_hold csr_hold
 load store mul div csr branch branch_taken redirect interrupt issue_blocked
+fetch_req fetch_wait fetch_resp fetch_drop fetch_backpressure fetch_mem_block
+fetch_redirect issue_lsu_block issue_pipe_block issue_div_block issue_csr_block
+issue_scoreboard_block issue_unclassified_block
 ```
 
 The following profile counts were observed in both environments. The harness
@@ -117,6 +120,25 @@ for the bracketed architectural counters above.
 | `gemm_i8` | 121,631 | 121,631 | 15,378 | 15,844 | 294 | 16,539 | 1,668 | 8,193 | 466 | 26,885 | 25,590 | 8,531 | 16,426 |
 | `conv_i8` | 154,792 | 154,792 | 15,906 | 16,388 | 318 | 18,595 | 1,676 | 9,217 | 482 | 33,077 | 28,710 | 9,571 | 17,018 |
 | `relu_i8` | 20,945 | 20,945 | 15,312 | 15,776 | 291 | 1,178 | 1,667 | 1 | 464 | 4,223 | 4,080 | 1,361 | 16,352 |
+
+The added frontend and issue-blocking counters provide a more useful
+workload-bounded diagnostic view. The values below are representative WSL
+samples; ModelSim agrees on the architectural interval and differs by at most
+one harness-boundary sample for the diagnostic counters.
+
+| Workload | Fetch wait | Fetch memory block | Fetch backpressure | Fetch redirect | LSU block | Pipe block | Div block | CSR block | Scoreboard block | Unclassified block |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `dot_i8` | 0 | 0 | 1,029 | 1,023 | 0 | 0 | 0 | 5 | 1,024 | 0 |
+| `gemm_i8` | 0 | 0 | 5 | 8,254 | 0 | 0 | 0 | 5 | 0 | 0 |
+| `conv_i8` | 0 | 0 | 9,221 | 9,278 | 0 | 0 | 0 | 6 | 9,216 | 0 |
+| `relu_i8` | 0 | 0 | 5 | 1,086 | 0 | 0 | 0 | 5 | 0 | 0 |
+
+The workload samples show no TCM fetch wait or memory-request block and no
+LSU, pipeline, or divider block in these four kernels. `dot_i8` and `conv_i8`
+have substantial scoreboard/dependency blocking, while `gemm_i8` and `relu_i8`
+do not. This is a profiling hypothesis, not proof that every scoreboard event
+maps one-for-one to an avoidable cycle; overlap and the shallow pipeline must
+be checked before changing the interlock logic.
 
 The profile signals are diagnostic counters, not architectural CSRs. They are
 sampled at the harness clock boundary and are intended to identify hypotheses
