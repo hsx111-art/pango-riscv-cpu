@@ -106,6 +106,7 @@ foreach ($workload in @('dot_i8', 'gemm_i8', 'conv_i8', 'relu_i8')) {
     if ($rc -ne 0 -or
         $output -notmatch "AI_METRICS workload=$workload" -or
         $output -notmatch 'MODELSIM_PROFILE' -or
+        $output -notmatch 'MODELSIM_WORKLOAD_PROFILE' -or
         $output -notmatch 'MODELSIM_TEST_PASS' -or
         $output -notmatch 'MODELSIM_TEST_COMPLETE' -or
         $output -match 'MODELSIM_TEST_FAIL') {

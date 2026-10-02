@@ -79,6 +79,27 @@ module tb_tcm_regression;
     integer      profile_redirect_count;
     integer      profile_interrupt_count;
     integer      profile_issue_blocked_count;
+    reg          workload_profile_active;
+    reg          workload_profile_start_seen;
+    reg          workload_profile_end_seen;
+    integer      workload_profile_start_cycle;
+    integer      workload_profile_cycle_count;
+    integer      workload_profile_issue_count;
+    integer      workload_profile_retire_count;
+    integer      workload_profile_lsu_stall_count;
+    integer      workload_profile_pipe_stall_count;
+    integer      workload_profile_div_hold_count;
+    integer      workload_profile_csr_hold_count;
+    integer      workload_profile_load_count;
+    integer      workload_profile_store_count;
+    integer      workload_profile_mul_count;
+    integer      workload_profile_div_count;
+    integer      workload_profile_csr_count;
+    integer      workload_profile_branch_count;
+    integer      workload_profile_branch_taken_count;
+    integer      workload_profile_redirect_count;
+    integer      workload_profile_interrupt_count;
+    integer      workload_profile_issue_blocked_count;
     real         cpi_value;
 
     riscv_tcm_top #(
@@ -136,6 +157,15 @@ module tb_tcm_regression;
         .axi_t_rid_o(axi_t_rid_o),
         .axi_t_rlast_o(axi_t_rlast_o)
     );
+
+    wire profile_marker_write =
+        (dut.u_core.u_csr.u_csrfile.csr_waddr_i == 12'h7b2);
+    wire profile_marker_start =
+        profile_marker_write &&
+        (dut.u_core.u_csr.u_csrfile.csr_wdata_i[31:24] == 8'h02);
+    wire profile_marker_end =
+        profile_marker_write &&
+        (dut.u_core.u_csr.u_csrfile.csr_wdata_i[31:24] == 8'h03);
 
     always #5 clk_i = ~clk_i;
 
@@ -197,6 +227,27 @@ module tb_tcm_regression;
         profile_redirect_count = 0;
         profile_interrupt_count = 0;
         profile_issue_blocked_count = 0;
+        workload_profile_active = 1'b0;
+        workload_profile_start_seen = 1'b0;
+        workload_profile_end_seen = 1'b0;
+        workload_profile_start_cycle = 0;
+        workload_profile_cycle_count = 0;
+        workload_profile_issue_count = 0;
+        workload_profile_retire_count = 0;
+        workload_profile_lsu_stall_count = 0;
+        workload_profile_pipe_stall_count = 0;
+        workload_profile_div_hold_count = 0;
+        workload_profile_csr_hold_count = 0;
+        workload_profile_load_count = 0;
+        workload_profile_store_count = 0;
+        workload_profile_mul_count = 0;
+        workload_profile_div_count = 0;
+        workload_profile_csr_count = 0;
+        workload_profile_branch_count = 0;
+        workload_profile_branch_taken_count = 0;
+        workload_profile_redirect_count = 0;
+        workload_profile_interrupt_count = 0;
+        workload_profile_issue_blocked_count = 0;
         pass_seen = 1'b0;
         fail_seen = 1'b0;
 
@@ -214,6 +265,36 @@ module tb_tcm_regression;
     // Sample the writeback request one half-cycle earlier so ModelSim can
     // classify the standard test before the RTL terminates the run.
     always @(negedge clk_i) begin
+        if (!rst_i && profile_marker_start) begin
+            workload_profile_active = 1'b1;
+            workload_profile_start_seen = 1'b1;
+            workload_profile_end_seen = 1'b0;
+            workload_profile_start_cycle = cycle_count;
+            workload_profile_cycle_count = 0;
+            workload_profile_issue_count = 0;
+            workload_profile_retire_count = 0;
+            workload_profile_lsu_stall_count = 0;
+            workload_profile_pipe_stall_count = 0;
+            workload_profile_div_hold_count = 0;
+            workload_profile_csr_hold_count = 0;
+            workload_profile_load_count = 0;
+            workload_profile_store_count = 0;
+            workload_profile_mul_count = 0;
+            workload_profile_div_count = 0;
+            workload_profile_csr_count = 0;
+            workload_profile_branch_count = 0;
+            workload_profile_branch_taken_count = 0;
+            workload_profile_redirect_count = 0;
+            workload_profile_interrupt_count = 0;
+            workload_profile_issue_blocked_count = 0;
+            $display("MODELSIM_WORKLOAD_PROFILE_START cycle=%0d", cycle_count);
+        end
+        else if (!rst_i && profile_marker_end && workload_profile_active) begin
+            workload_profile_active = 1'b0;
+            workload_profile_end_seen = 1'b1;
+            workload_profile_cycle_count = cycle_count - workload_profile_start_cycle;
+            $display("MODELSIM_WORKLOAD_PROFILE cycles=%0d issue=%0d retire=%0d lsu_stall=%0d pipe_stall=%0d div_hold=%0d csr_hold=%0d load=%0d store=%0d mul=%0d div=%0d csr=%0d branch=%0d branch_taken=%0d redirect=%0d interrupt=%0d issue_blocked=%0d", workload_profile_cycle_count, workload_profile_issue_count, workload_profile_retire_count, workload_profile_lsu_stall_count, workload_profile_pipe_stall_count, workload_profile_div_hold_count, workload_profile_csr_hold_count, workload_profile_load_count, workload_profile_store_count, workload_profile_mul_count, workload_profile_div_count, workload_profile_csr_count, workload_profile_branch_count, workload_profile_branch_taken_count, workload_profile_redirect_count, workload_profile_interrupt_count, workload_profile_issue_blocked_count);
+        end
         if (!rst_i) begin
             if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.opcode_accept_r)
                 profile_issue_count = profile_issue_count + 1;
@@ -252,6 +333,45 @@ module tb_tcm_regression;
                  dut.u_core.u_issue.div_pending_q || dut.u_core.u_issue.csr_pending_q ||
                  (dut.u_core.u_issue.issue_csr_w && !dut.u_core.u_issue.u_pipe_ctrl.pipeline_empty_o)))
                 profile_issue_blocked_count = profile_issue_blocked_count + 1;
+
+            if (workload_profile_active && !profile_marker_start && !profile_marker_end) begin
+                workload_profile_cycle_count = workload_profile_cycle_count + 1;
+                if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.opcode_accept_r)
+                    workload_profile_issue_count = workload_profile_issue_count + 1;
+                if (dut.u_core.u_issue.instruction_retired_o)
+                    workload_profile_retire_count = workload_profile_retire_count + 1;
+                if (dut.u_core.u_issue.lsu_stall_i)
+                    workload_profile_lsu_stall_count = workload_profile_lsu_stall_count + 1;
+                if (dut.u_core.u_issue.exec_hold_o)
+                    workload_profile_pipe_stall_count = workload_profile_pipe_stall_count + 1;
+                if (dut.u_core.u_issue.div_pending_q)
+                    workload_profile_div_hold_count = workload_profile_div_hold_count + 1;
+                if (dut.u_core.u_issue.csr_pending_q)
+                    workload_profile_csr_hold_count = workload_profile_csr_hold_count + 1;
+                if (dut.u_core.u_issue.u_pipe_ctrl.load_e1_o)
+                    workload_profile_load_count = workload_profile_load_count + 1;
+                if (dut.u_core.u_issue.u_pipe_ctrl.store_e1_o)
+                    workload_profile_store_count = workload_profile_store_count + 1;
+                if (dut.u_core.u_issue.u_pipe_ctrl.mul_e1_o)
+                    workload_profile_mul_count = workload_profile_mul_count + 1;
+                if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.issue_div_w)
+                    workload_profile_div_count = workload_profile_div_count + 1;
+                if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.issue_csr_w)
+                    workload_profile_csr_count = workload_profile_csr_count + 1;
+                if (dut.u_core.u_issue.branch_exec_request_i)
+                    workload_profile_branch_count = workload_profile_branch_count + 1;
+                if (dut.u_core.u_issue.branch_exec_is_taken_i)
+                    workload_profile_branch_taken_count = workload_profile_branch_taken_count + 1;
+                if (dut.u_core.u_issue.branch_request_o)
+                    workload_profile_redirect_count = workload_profile_redirect_count + 1;
+                if (dut.u_core.u_issue.take_interrupt_i)
+                    workload_profile_interrupt_count = workload_profile_interrupt_count + 1;
+                if (dut.u_core.u_issue.opcode_valid_w && !dut.u_core.u_issue.opcode_accept_r &&
+                    (dut.u_core.u_issue.lsu_stall_i || dut.u_core.u_issue.stall_w ||
+                     dut.u_core.u_issue.div_pending_q || dut.u_core.u_issue.csr_pending_q ||
+                     (dut.u_core.u_issue.issue_csr_w && !dut.u_core.u_issue.u_pipe_ctrl.pipeline_empty_o)))
+                    workload_profile_issue_blocked_count = workload_profile_issue_blocked_count + 1;
+            end
         end
         if (!rst_i && irq_cycle >= 0) begin
             if (cycle_count == irq_cycle)
@@ -259,7 +379,7 @@ module tb_tcm_regression;
             else if (cycle_count == (irq_cycle + 1))
                 intr_i[0] = 1'b0;
         end
-        if (!rst_i && dut.u_core.u_csr.u_csrfile.csr_waddr_i == 12'h7b2) begin
+        if (!rst_i && profile_marker_write) begin
             case (dut.u_core.u_csr.u_csrfile.csr_wdata_i[31:24])
                 8'h01: begin
                     if (dut.u_core.u_csr.u_csrfile.csr_wdata_i[7:0] == "P") begin

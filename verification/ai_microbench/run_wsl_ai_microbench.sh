@@ -41,7 +41,9 @@ for workload in dot_i8 gemm_i8 conv_i8 relu_i8; do
     if [[ $status -ne 0 || "$output" != *"AI_PASS"* ||
           "$output" != *"AI_METRICS workload=$workload"* ||
           "$output" != *"WSL_METRICS"* ||
-          "$output" != *"WSL_PROFILE"* ]]; then
+          "$output" != *"WSL_PROFILE"* ||
+          "$output" != *"WSL_WORKLOAD_PROFILE"* ||
+          "$output" == *"WSL_WORKLOAD_PROFILE_MISSING"* ]]; then
         echo "WSL_AI_FAIL $workload"
         exit 1
     fi

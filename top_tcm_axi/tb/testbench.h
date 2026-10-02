@@ -48,6 +48,27 @@ public:
     unsigned long long           m_profile_redirect;
     unsigned long long           m_profile_interrupt;
     unsigned long long           m_profile_issue_blocked;
+    bool                         m_workload_profile_active;
+    bool                         m_workload_profile_start_seen;
+    bool                         m_workload_profile_end_seen;
+    unsigned                     m_workload_profile_start_step;
+    unsigned                     m_workload_profile_cycle_count;
+    unsigned long long           m_workload_profile_issue;
+    unsigned long long           m_workload_profile_retire;
+    unsigned long long           m_workload_profile_lsu_stall;
+    unsigned long long           m_workload_profile_pipe_stall;
+    unsigned long long           m_workload_profile_div_hold;
+    unsigned long long           m_workload_profile_csr_hold;
+    unsigned long long           m_workload_profile_load_issue;
+    unsigned long long           m_workload_profile_store_issue;
+    unsigned long long           m_workload_profile_mul_issue;
+    unsigned long long           m_workload_profile_div_issue;
+    unsigned long long           m_workload_profile_csr_issue;
+    unsigned long long           m_workload_profile_branch;
+    unsigned long long           m_workload_profile_branch_taken;
+    unsigned long long           m_workload_profile_redirect;
+    unsigned long long           m_workload_profile_interrupt;
+    unsigned long long           m_workload_profile_issue_blocked;
     //-----------------------------------------------------------------
     // Signals
     //-----------------------------------------------------------------    
@@ -104,9 +125,32 @@ public:
                m_profile_redirect,
                m_profile_interrupt,
                m_profile_issue_blocked);
+        if (m_workload_profile_start_seen && m_workload_profile_end_seen)
+            printf("WSL_WORKLOAD_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
+                   m_workload_profile_cycle_count,
+                   m_workload_profile_issue,
+                   m_workload_profile_retire,
+                   m_workload_profile_lsu_stall,
+                   m_workload_profile_pipe_stall,
+                   m_workload_profile_div_hold,
+                   m_workload_profile_csr_hold,
+                   m_workload_profile_load_issue,
+                   m_workload_profile_store_issue,
+                   m_workload_profile_mul_issue,
+                   m_workload_profile_div_issue,
+                   m_workload_profile_csr_issue,
+                   m_workload_profile_branch,
+                   m_workload_profile_branch_taken,
+                   m_workload_profile_redirect,
+                   m_workload_profile_interrupt,
+                   m_workload_profile_issue_blocked);
+        else
+            printf("WSL_WORKLOAD_PROFILE_MISSING start=%d end=%d\n",
+                   m_workload_profile_start_seen ? 1 : 0,
+                   m_workload_profile_end_seen ? 1 : 0);
     }
 
-    void sample_profile(void)
+    void sample_profile(bool count_workload)
     {
         auto issue = m_dut->m_rtl->v->u_core->u_issue;
         m_profile_issue          += issue->profile_issue();
@@ -125,6 +169,46 @@ public:
         m_profile_redirect      += issue->profile_redirect();
         m_profile_interrupt     += issue->profile_interrupt();
         m_profile_issue_blocked += issue->profile_issue_blocked();
+        if (count_workload)
+        {
+            m_workload_profile_issue          += issue->profile_issue();
+            m_workload_profile_retire         += issue->profile_retire();
+            m_workload_profile_lsu_stall      += issue->profile_lsu_stall();
+            m_workload_profile_pipe_stall     += issue->profile_pipe_stall();
+            m_workload_profile_div_hold       += issue->profile_div_hold();
+            m_workload_profile_csr_hold       += issue->profile_csr_hold();
+            m_workload_profile_load_issue     += issue->profile_load_issue();
+            m_workload_profile_store_issue    += issue->profile_store_issue();
+            m_workload_profile_mul_issue      += issue->profile_mul_issue();
+            m_workload_profile_div_issue      += issue->profile_div_issue();
+            m_workload_profile_csr_issue      += issue->profile_csr_issue();
+            m_workload_profile_branch         += issue->profile_branch();
+            m_workload_profile_branch_taken  += issue->profile_branch_taken();
+            m_workload_profile_redirect       += issue->profile_redirect();
+            m_workload_profile_interrupt      += issue->profile_interrupt();
+            m_workload_profile_issue_blocked += issue->profile_issue_blocked();
+        }
+    }
+
+    void reset_workload_profile(void)
+    {
+        m_workload_profile_cycle_count = 0;
+        m_workload_profile_issue = 0;
+        m_workload_profile_retire = 0;
+        m_workload_profile_lsu_stall = 0;
+        m_workload_profile_pipe_stall = 0;
+        m_workload_profile_div_hold = 0;
+        m_workload_profile_csr_hold = 0;
+        m_workload_profile_load_issue = 0;
+        m_workload_profile_store_issue = 0;
+        m_workload_profile_mul_issue = 0;
+        m_workload_profile_div_issue = 0;
+        m_workload_profile_csr_issue = 0;
+        m_workload_profile_branch = 0;
+        m_workload_profile_branch_taken = 0;
+        m_workload_profile_redirect = 0;
+        m_workload_profile_interrupt = 0;
+        m_workload_profile_issue_blocked = 0;
     }
 
     //-----------------------------------------------------------------
@@ -152,6 +236,11 @@ public:
         m_profile_redirect = 0;
         m_profile_interrupt = 0;
         m_profile_issue_blocked = 0;
+        m_workload_profile_active = false;
+        m_workload_profile_start_seen = false;
+        m_workload_profile_end_seen = false;
+        m_workload_profile_start_step = 0;
+        reset_workload_profile();
         const char *irq_cycle = getenv("IRQ_CYCLE");
         if (irq_cycle && *irq_cycle)
             m_irq_cycle = strtol(irq_cycle, NULL, 0);
@@ -221,7 +310,33 @@ public:
             intr_in.write(0);
         wait();
         intr_in.write(0);
-        sample_profile();
+        auto csrfile = m_dut->m_rtl->v->u_core->u_csr->u_csrfile;
+        const bool profile_marker_start = csrfile->get_profile_marker_start();
+        const bool profile_marker_end = csrfile->get_profile_marker_end();
+
+        if (profile_marker_start)
+        {
+            reset_workload_profile();
+            m_workload_profile_active = true;
+            m_workload_profile_start_seen = true;
+            m_workload_profile_end_seen = false;
+            m_workload_profile_start_step = m_step_count;
+            printf("WSL_WORKLOAD_PROFILE_START step=%u\n", m_step_count);
+        }
+        else if (profile_marker_end && m_workload_profile_active)
+        {
+            m_workload_profile_active = false;
+            m_workload_profile_end_seen = true;
+            m_workload_profile_cycle_count = m_step_count -
+                                              m_workload_profile_start_step;
+        }
+
+        const bool count_workload = m_workload_profile_active &&
+                                    !profile_marker_start &&
+                                    !profile_marker_end;
+        if (count_workload)
+            m_workload_profile_cycle_count++;
+        sample_profile(count_workload);
         m_step_count++;
     }
     //-----------------------------------------------------------------
@@ -246,6 +361,11 @@ public:
         m_profile_redirect = 0;
         m_profile_interrupt = 0;
         m_profile_issue_blocked = 0;
+        m_workload_profile_active = false;
+        m_workload_profile_start_seen = false;
+        m_workload_profile_end_seen = false;
+        m_workload_profile_start_step = 0;
+        reset_workload_profile();
         intr_in.write(0);
         rst_cpu_in.write(true);
         wait();

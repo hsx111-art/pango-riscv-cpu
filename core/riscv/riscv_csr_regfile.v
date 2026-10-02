@@ -551,6 +551,27 @@ end
 //-----------------------------------------------------------------
 `ifdef verilator
 `define HAS_SIM_CTRL
+
+// Simulation-only event latches allow cycle-accurate testbenches to observe
+// DSCRATCH profiling markers without depending on combinational delta timing.
+reg profile_marker_start_q;
+reg profile_marker_end_q;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+begin
+    profile_marker_start_q <= 1'b0;
+    profile_marker_end_q   <= 1'b0;
+end
+else
+begin
+    profile_marker_start_q <= (csr_waddr_i == `CSR_DSCRATCH) &&
+                              (csr_wdata_i[31:24] == 8'h02) &&
+                              ~(|exception_i);
+    profile_marker_end_q   <= (csr_waddr_i == `CSR_DSCRATCH) &&
+                              (csr_wdata_i[31:24] == 8'h03) &&
+                              ~(|exception_i);
+end
 `endif
 `ifdef verilog_sim
 `define HAS_SIM_CTRL
@@ -706,6 +727,18 @@ endfunction
 function [31:0] get_minstret; /*verilator public*/
 begin
     get_minstret = csr_minstret_q;
+end
+endfunction
+
+function [0:0] get_profile_marker_start; /*verilator public*/
+begin
+    get_profile_marker_start = profile_marker_start_q;
+end
+endfunction
+
+function [0:0] get_profile_marker_end; /*verilator public*/
+begin
+    get_profile_marker_end = profile_marker_end_q;
 end
 endfunction
 `endif

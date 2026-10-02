@@ -5,6 +5,8 @@
 #endif
 
 #define CSR_DSCRATCH 0x7b2
+#define PROFILE_START 0x02000000u
+#define PROFILE_END   0x03000000u
 
 static volatile int8_t dot_a[64];
 static volatile int8_t dot_b[64];
@@ -42,6 +44,11 @@ static inline void sim_exit(uint32_t code)
 {
     register uint32_t value asm("t0") = code;
     asm volatile ("csrw dscratch, %0" : : "r"(value));
+}
+
+static inline void sim_profile_marker(uint32_t marker)
+{
+    asm volatile ("csrw dscratch, %0" : : "r"(marker));
 }
 
 static void print_text(const char *text)
@@ -213,7 +220,9 @@ int main(void)
 #if defined(WORKLOAD_DOT_I8)
     start_cycle = read_mcycle();
     start_retired = read_minstret();
+    sim_profile_marker(PROFILE_START);
     checksum = run_dot_i8();
+    sim_profile_marker(PROFILE_END);
     end_retired = read_minstret();
     end_cycle = read_mcycle();
     report_metric("dot_i8", start_cycle, end_cycle, start_retired, end_retired, checksum);
@@ -222,7 +231,9 @@ int main(void)
 #elif defined(WORKLOAD_GEMM_I8)
     start_cycle = read_mcycle();
     start_retired = read_minstret();
+    sim_profile_marker(PROFILE_START);
     checksum = run_gemm_i8();
+    sim_profile_marker(PROFILE_END);
     end_retired = read_minstret();
     end_cycle = read_mcycle();
     report_metric("gemm_i8", start_cycle, end_cycle, start_retired, end_retired, checksum);
@@ -231,7 +242,9 @@ int main(void)
 #elif defined(WORKLOAD_CONV_I8)
     start_cycle = read_mcycle();
     start_retired = read_minstret();
+    sim_profile_marker(PROFILE_START);
     checksum = run_conv_i8();
+    sim_profile_marker(PROFILE_END);
     end_retired = read_minstret();
     end_cycle = read_mcycle();
     report_metric("conv_i8", start_cycle, end_cycle, start_retired, end_retired, checksum);
@@ -240,7 +253,9 @@ int main(void)
 #elif defined(WORKLOAD_RELU_I8)
     start_cycle = read_mcycle();
     start_retired = read_minstret();
+    sim_profile_marker(PROFILE_START);
     checksum = run_relu_i8();
+    sim_profile_marker(PROFILE_END);
     end_retired = read_minstret();
     end_cycle = read_mcycle();
     report_metric("relu_i8", start_cycle, end_cycle, start_retired, end_retired, checksum);
