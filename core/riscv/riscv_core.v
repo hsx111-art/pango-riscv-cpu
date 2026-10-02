@@ -51,6 +51,7 @@ module riscv_core
     ,parameter SUPPORT_MUL_BYPASS = 1
     ,parameter SUPPORT_REGFILE_XILINX = 0
     ,parameter EXTRA_DECODE_STAGE = 0
+    ,parameter ENABLE_BRANCH_PREDICTOR = 0
     ,parameter MEM_CACHE_ADDR_MIN = 32'h80000000
     ,parameter MEM_CACHE_ADDR_MAX = 32'h8fffffff
 )
@@ -98,6 +99,7 @@ wire  [ 31:0]  lsu_opcode_pc_w;
 wire           fetch_accept_w;
 wire  [  4:0]  csr_opcode_rd_idx_w;
 wire  [ 31:0]  branch_exec_source_w;
+wire  [ 31:0]  branch_d_exec_source_w;
 wire  [ 31:0]  csr_opcode_rb_operand_w;
 wire  [ 31:0]  writeback_div_value_w;
 wire           csr_opcode_valid_w;
@@ -250,6 +252,7 @@ u_exec
     ,.branch_is_jmp_o(branch_exec_is_jmp_w)
     ,.branch_pc_o(branch_exec_pc_w)
     ,.branch_d_request_o(branch_d_exec_request_w)
+    ,.branch_d_source_o(branch_d_exec_source_w)
     ,.branch_d_pc_o(branch_d_exec_pc_w)
     ,.branch_d_priv_o(branch_d_exec_priv_w)
     ,.writeback_value_o(writeback_exec_value_w)
@@ -612,6 +615,7 @@ u_issue
 riscv_fetch
 #(
      .SUPPORT_MMU(SUPPORT_MMU)
+    ,.ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR)
 )
 u_fetch
 (
@@ -628,6 +632,12 @@ u_fetch
     ,.branch_request_i(branch_request_w)
     ,.branch_pc_i(branch_pc_w)
     ,.branch_priv_i(branch_priv_w)
+    ,.branch_d_request_i(branch_d_exec_request_w)
+    ,.branch_d_source_i(branch_d_exec_source_w)
+    ,.branch_exec_request_i(branch_exec_request_w)
+    ,.branch_exec_is_taken_i(branch_exec_is_taken_w)
+    ,.branch_exec_source_i(branch_exec_source_w)
+    ,.branch_exec_pc_i(branch_exec_pc_w)
 
     // Outputs
     ,.fetch_valid_o(fetch_dec_valid_w)

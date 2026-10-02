@@ -45,6 +45,7 @@ module riscv_fetch
 //-----------------------------------------------------------------
 #(
      parameter SUPPORT_MMU      = 1
+    ,parameter ENABLE_BRANCH_PREDICTOR = 0
 )
 //-----------------------------------------------------------------
 // Ports
@@ -63,6 +64,12 @@ module riscv_fetch
     ,input           branch_request_i
     ,input  [ 31:0]  branch_pc_i
     ,input  [  1:0]  branch_priv_i
+    ,input           branch_d_request_i
+    ,input  [ 31:0]  branch_d_source_i
+    ,input           branch_exec_request_i
+    ,input           branch_exec_is_taken_i
+    ,input  [ 31:0]  branch_exec_source_i
+    ,input  [ 31:0]  branch_exec_pc_i
 
     // Outputs
     ,output          fetch_valid_o
@@ -93,6 +100,26 @@ reg         active_q;
 wire        icache_busy_w;
 wire        stall_w       = !fetch_accept_i || icache_busy_w || !icache_accept_i;
 
+wire        predictor_valid_w;
+wire        predictor_taken_w;
+wire [31:0] predictor_target_w;
+wire        predictor_suppress_w;
+wire        predictor_recover_w;
+wire [31:0] predictor_recover_pc_w;
+wire [ 1:0] predictor_recover_priv_w;
+wire        predictor_event_w;
+wire        predictor_taken_event_w;
+wire        predictor_correct_w;
+wire        predictor_mispredict_w;
+wire        predictor_recover_event_w;
+
+wire        branch_request_effective_w = predictor_recover_w ||
+                                         (branch_request_i && !predictor_suppress_w);
+wire [31:0] branch_pc_effective_w = predictor_recover_w ?
+                                    predictor_recover_pc_w : branch_pc_i;
+wire [1:0]  branch_priv_effective_w = predictor_recover_w ?
+                                      predictor_recover_priv_w : branch_priv_i;
+
 //-------------------------------------------------------------
 // Buffered branch
 //-------------------------------------------------------------
@@ -107,13 +134,13 @@ begin
     branch_pc_q    <= 32'b0;
     branch_priv_q  <= `PRIV_MACHINE;
 end
-else if (branch_request_i)
+else if (branch_request_effective_w)
 begin
     if (stall_w)
     begin
         branch_q       <= 1'b1;
-        branch_pc_q    <= branch_pc_i;
-        branch_priv_q  <= branch_priv_i;
+        branch_pc_q    <= branch_pc_effective_w;
+        branch_priv_q  <= branch_priv_effective_w;
     end
     else
     begin
@@ -131,13 +158,15 @@ end
 wire        branch_w      = branch_q;
 wire [31:0] branch_pc_w   = branch_pc_q;
 wire [1:0]  branch_priv_w = branch_priv_q;
-wire        branch_direct_w = branch_request_i && !stall_w;
+wire        branch_direct_w = branch_request_effective_w && !stall_w;
 wire        branch_pending_w = branch_w && !stall_w;
 wire        branch_redirect_w = branch_direct_w || branch_pending_w;
-wire [31:0] branch_redirect_pc_w = branch_direct_w ? branch_pc_i : branch_pc_w;
-wire [1:0]  branch_redirect_priv_w = branch_direct_w ? branch_priv_i : branch_priv_w;
+wire [31:0] branch_redirect_pc_w = branch_direct_w ?
+                                   branch_pc_effective_w : branch_pc_w;
+wire [1:0]  branch_redirect_priv_w = branch_direct_w ?
+                                     branch_priv_effective_w : branch_priv_w;
 
-assign squash_decode_o    = branch_request_i;
+assign squash_decode_o    = branch_request_effective_w;
 
 //-------------------------------------------------------------
 // Active flag
@@ -200,7 +229,8 @@ else if (branch_redirect_w)
     pc_f_q  <= branch_redirect_pc_w;
 // NPC
 else if (!stall_w)
-    pc_f_q  <= {icache_pc_w[31:2],2'b0} + 32'd4;
+    pc_f_q  <= (predictor_valid_w && predictor_taken_w) ?
+               predictor_target_w : {icache_pc_w[31:2],2'b0} + 32'd4;
 
 reg [1:0] priv_f_q;
 reg       branch_d_q;
@@ -277,6 +307,71 @@ assign fetch_instr_o       = skid_valid_q ? skid_buffer_q[31:0]  : icache_inst_i
 // Faults
 assign fetch_fault_fetch_o = skid_valid_q ? skid_buffer_q[64] : icache_error_i;
 assign fetch_fault_page_o  = skid_valid_q ? skid_buffer_q[65] : icache_page_fault_i;
+
+// The predictor observes the instruction actually accepted by decode. It is
+// therefore also correct when a response spent time in the skid buffer.
+riscv_branch_predictor
+#(
+     .ENABLE(ENABLE_BRANCH_PREDICTOR)
+)
+u_predictor
+(
+     .clk_i(clk_i)
+    ,.rst_i(rst_i)
+    ,.fetch_valid_i(fetch_valid_o)
+    ,.fetch_accept_i(fetch_accept_i)
+    ,.fetch_pc_i(fetch_pc_o)
+    ,.fetch_instr_i(fetch_instr_o)
+    ,.fetch_fault_i(fetch_fault_fetch_o | fetch_fault_page_o)
+    ,.fetch_priv_i(icache_priv_w)
+    ,.resolve_valid_i(branch_exec_request_i)
+    ,.resolve_taken_i(branch_exec_is_taken_i)
+    ,.resolve_source_i(branch_exec_source_i)
+    ,.resolve_pc_i(branch_exec_pc_i)
+    ,.branch_d_valid_i(branch_d_request_i)
+    ,.branch_d_source_i(branch_d_source_i)
+    ,.branch_d_pc_i(branch_pc_i)
+    ,.predict_valid_o(predictor_valid_w)
+    ,.predict_taken_o(predictor_taken_w)
+    ,.predict_target_o(predictor_target_w)
+    ,.suppress_redirect_o(predictor_suppress_w)
+    ,.recover_valid_o(predictor_recover_w)
+    ,.recover_pc_o(predictor_recover_pc_w)
+    ,.recover_priv_o(predictor_recover_priv_w)
+    ,.predictor_event_o(predictor_event_w)
+    ,.predictor_taken_event_o(predictor_taken_event_w)
+    ,.predictor_correct_o(predictor_correct_w)
+    ,.predictor_mispredict_o(predictor_mispredict_w)
+    ,.predictor_recover_o(predictor_recover_event_w)
+);
+
+`ifdef verilator
+function [0:0] profile_predictor_event; /*verilator public*/
+begin
+    profile_predictor_event = predictor_event_w;
+end
+endfunction
+function [0:0] profile_predictor_taken; /*verilator public*/
+begin
+    profile_predictor_taken = predictor_taken_event_w;
+end
+endfunction
+function [0:0] profile_predictor_correct; /*verilator public*/
+begin
+    profile_predictor_correct = predictor_correct_w;
+end
+endfunction
+function [0:0] profile_predictor_mispredict; /*verilator public*/
+begin
+    profile_predictor_mispredict = predictor_mispredict_w;
+end
+endfunction
+function [0:0] profile_predictor_recover; /*verilator public*/
+begin
+    profile_predictor_recover = predictor_recover_event_w;
+end
+endfunction
+`endif
 
 
 

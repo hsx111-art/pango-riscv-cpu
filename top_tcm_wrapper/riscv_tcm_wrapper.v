@@ -52,6 +52,7 @@ module riscv_tcm_wrapper
     ,parameter TCM_MEM_BASE     = 0
     ,parameter MEM_CACHE_ADDR_MIN = 0
     ,parameter MEM_CACHE_ADDR_MAX = 32'hffffffff
+    ,parameter ENABLE_BRANCH_PREDICTOR = 0
 )
 //-----------------------------------------------------------------
 // Ports
@@ -178,6 +179,7 @@ riscv_core
 #(
      .MEM_CACHE_ADDR_MIN(MEM_CACHE_ADDR_MIN)
     ,.MEM_CACHE_ADDR_MAX(MEM_CACHE_ADDR_MAX)
+    ,.ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR)
 )
 u_core
 (

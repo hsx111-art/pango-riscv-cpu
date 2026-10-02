@@ -8,6 +8,7 @@ core/riscv/riscv_decoder.v
 core/riscv/riscv_defs.v
 core/riscv/riscv_divider.v
 core/riscv/riscv_exec.v
+core/riscv/riscv_branch_predictor.v
 core/riscv/riscv_fetch.v
 core/riscv/riscv_issue.v
 core/riscv/riscv_lsu.v

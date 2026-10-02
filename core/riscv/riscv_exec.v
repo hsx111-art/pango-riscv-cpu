@@ -65,6 +65,7 @@ module riscv_exec
     ,output          branch_is_jmp_o
     ,output [ 31:0]  branch_pc_o
     ,output          branch_d_request_o
+    ,output [ 31:0]  branch_d_source_o
     ,output [ 31:0]  branch_d_pc_o
     ,output [  1:0]  branch_d_priv_o
     ,output [ 31:0]  writeback_value_o
@@ -413,6 +414,7 @@ assign branch_is_ret_o    = branch_ret_q;
 assign branch_is_jmp_o    = branch_jmp_q;
 
 assign branch_d_request_o = (branch_r && opcode_valid_i && branch_taken_r);
+assign branch_d_source_o  = opcode_pc_i;
 assign branch_d_pc_o      = branch_target_r;
 assign branch_d_priv_o    = 2'b0; // don't care
 
