@@ -434,6 +434,29 @@ assign fetch_accept_o       = opcode_valid_w ? (opcode_accept_r & ~take_interrup
 
 assign stall_w              = pipe_stall_raw_w;
 
+// Verification-only issue blocking classification. These mutually exclusive
+// signals explain why an otherwise valid fetched instruction was not accepted
+// in a cycle; they do not participate in the issue decision.
+wire issue_lsu_block_w = opcode_valid_w && !opcode_accept_r &&
+                         lsu_stall_i;
+wire issue_pipe_block_w = opcode_valid_w && !opcode_accept_r &&
+                          !lsu_stall_i && stall_w;
+wire issue_div_block_w = opcode_valid_w && !opcode_accept_r &&
+                         !lsu_stall_i && !stall_w && div_pending_q;
+wire issue_csr_block_w = opcode_valid_w && !opcode_accept_r &&
+                         !lsu_stall_i && !stall_w && !div_pending_q &&
+                         (csr_pending_q || (issue_csr_w && ~pipe_empty_w));
+wire issue_scoreboard_block_w = opcode_valid_w && !opcode_accept_r &&
+                                !lsu_stall_i && !stall_w && !div_pending_q &&
+                                !(csr_pending_q || (issue_csr_w && ~pipe_empty_w)) &&
+                                (scoreboard_r[issue_ra_idx_w] ||
+                                 scoreboard_r[issue_rb_idx_w] ||
+                                 scoreboard_r[issue_rd_idx_w]);
+wire issue_unclassified_block_w = opcode_valid_w && !opcode_accept_r &&
+                                  !(issue_lsu_block_w || issue_pipe_block_w ||
+                                    issue_div_block_w || issue_csr_block_w ||
+                                    issue_scoreboard_block_w);
+
 //-------------------------------------------------------------
 // Register File
 //------------------------------------------------------------- 
@@ -700,6 +723,36 @@ begin
     profile_issue_blocked = opcode_valid_w && !opcode_accept_r &&
                            (lsu_stall_i || stall_w || div_pending_q ||
                             csr_pending_q || (issue_csr_w && ~pipe_empty_w));
+end
+endfunction
+function [0:0] profile_issue_lsu_block; /*verilator public*/
+begin
+    profile_issue_lsu_block = issue_lsu_block_w;
+end
+endfunction
+function [0:0] profile_issue_pipe_block; /*verilator public*/
+begin
+    profile_issue_pipe_block = issue_pipe_block_w;
+end
+endfunction
+function [0:0] profile_issue_div_block; /*verilator public*/
+begin
+    profile_issue_div_block = issue_div_block_w;
+end
+endfunction
+function [0:0] profile_issue_csr_block; /*verilator public*/
+begin
+    profile_issue_csr_block = issue_csr_block_w;
+end
+endfunction
+function [0:0] profile_issue_scoreboard_block; /*verilator public*/
+begin
+    profile_issue_scoreboard_block = issue_scoreboard_block_w;
+end
+endfunction
+function [0:0] profile_issue_unclassified_block; /*verilator public*/
+begin
+    profile_issue_unclassified_block = issue_unclassified_block_w;
 end
 endfunction
 `endif

@@ -310,6 +310,16 @@ assign fetch_instr_o       = skid_valid_q ? skid_buffer_q[31:0]  : icache_inst_i
 assign fetch_fault_fetch_o = skid_valid_q ? skid_buffer_q[64] : icache_error_i;
 assign fetch_fault_page_o  = skid_valid_q ? skid_buffer_q[65] : icache_page_fault_i;
 
+// Verification-only frontend events. They expose the existing request,
+// response, backpressure, and redirect conditions without changing behavior.
+wire profile_fetch_request_w = icache_rd_o && icache_accept_i;
+wire profile_fetch_wait_w = icache_busy_w;
+wire profile_fetch_response_w = icache_valid_i;
+wire profile_fetch_response_drop_w = icache_valid_i && fetch_resp_drop_w;
+wire profile_fetch_backpressure_w = fetch_valid_o && !fetch_accept_i;
+wire profile_fetch_memory_block_w = icache_rd_o && !icache_accept_i;
+wire profile_fetch_redirect_w = branch_redirect_w;
+
 // The predictor observes the instruction actually accepted by decode. It is
 // therefore also correct when a response spent time in the skid buffer.
 riscv_branch_predictor
@@ -374,6 +384,41 @@ endfunction
 function [0:0] profile_predictor_recover; /*verilator public*/
 begin
     profile_predictor_recover = predictor_recover_event_w;
+end
+endfunction
+function [0:0] profile_fetch_request; /*verilator public*/
+begin
+    profile_fetch_request = profile_fetch_request_w;
+end
+endfunction
+function [0:0] profile_fetch_wait; /*verilator public*/
+begin
+    profile_fetch_wait = profile_fetch_wait_w;
+end
+endfunction
+function [0:0] profile_fetch_response; /*verilator public*/
+begin
+    profile_fetch_response = profile_fetch_response_w;
+end
+endfunction
+function [0:0] profile_fetch_response_drop; /*verilator public*/
+begin
+    profile_fetch_response_drop = profile_fetch_response_drop_w;
+end
+endfunction
+function [0:0] profile_fetch_backpressure; /*verilator public*/
+begin
+    profile_fetch_backpressure = profile_fetch_backpressure_w;
+end
+endfunction
+function [0:0] profile_fetch_memory_block; /*verilator public*/
+begin
+    profile_fetch_memory_block = profile_fetch_memory_block_w;
+end
+endfunction
+function [0:0] profile_fetch_redirect; /*verilator public*/
+begin
+    profile_fetch_redirect = profile_fetch_redirect_w;
 end
 endfunction
 `endif

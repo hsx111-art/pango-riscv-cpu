@@ -53,6 +53,19 @@ public:
     unsigned long long           m_profile_redirect;
     unsigned long long           m_profile_interrupt;
     unsigned long long           m_profile_issue_blocked;
+    unsigned long long           m_profile_fetch_request;
+    unsigned long long           m_profile_fetch_wait;
+    unsigned long long           m_profile_fetch_response;
+    unsigned long long           m_profile_fetch_response_drop;
+    unsigned long long           m_profile_fetch_backpressure;
+    unsigned long long           m_profile_fetch_memory_block;
+    unsigned long long           m_profile_fetch_redirect;
+    unsigned long long           m_profile_issue_lsu_block;
+    unsigned long long           m_profile_issue_pipe_block;
+    unsigned long long           m_profile_issue_div_block;
+    unsigned long long           m_profile_issue_csr_block;
+    unsigned long long           m_profile_issue_scoreboard_block;
+    unsigned long long           m_profile_issue_unclassified_block;
     bool                         m_workload_profile_active;
     bool                         m_workload_profile_start_seen;
     bool                         m_workload_profile_end_seen;
@@ -81,6 +94,19 @@ public:
     unsigned long long           m_workload_profile_redirect;
     unsigned long long           m_workload_profile_interrupt;
     unsigned long long           m_workload_profile_issue_blocked;
+    unsigned long long           m_workload_profile_fetch_request;
+    unsigned long long           m_workload_profile_fetch_wait;
+    unsigned long long           m_workload_profile_fetch_response;
+    unsigned long long           m_workload_profile_fetch_response_drop;
+    unsigned long long           m_workload_profile_fetch_backpressure;
+    unsigned long long           m_workload_profile_fetch_memory_block;
+    unsigned long long           m_workload_profile_fetch_redirect;
+    unsigned long long           m_workload_profile_issue_lsu_block;
+    unsigned long long           m_workload_profile_issue_pipe_block;
+    unsigned long long           m_workload_profile_issue_div_block;
+    unsigned long long           m_workload_profile_issue_csr_block;
+    unsigned long long           m_workload_profile_issue_scoreboard_block;
+    unsigned long long           m_workload_profile_issue_unclassified_block;
     //-----------------------------------------------------------------
     // Signals
     //-----------------------------------------------------------------    
@@ -119,7 +145,7 @@ public:
         double cpi = minstret ? (double)mcycle / (double)minstret : 0.0;
         printf("WSL_METRICS steps=%u retired=%u mcycle=%08x minstret=%08x cpi=%.6f\n",
                m_step_count, minstret, mcycle, minstret, cpi);
-        printf("WSL_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu predictor_event=%llu predictor_taken=%llu predictor_correct=%llu predictor_mispredict=%llu predictor_recover=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
+        printf("WSL_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu predictor_event=%llu predictor_taken=%llu predictor_correct=%llu predictor_mispredict=%llu predictor_recover=%llu redirect=%llu interrupt=%llu issue_blocked=%llu fetch_req=%llu fetch_wait=%llu fetch_resp=%llu fetch_drop=%llu fetch_backpressure=%llu fetch_mem_block=%llu fetch_redirect=%llu issue_lsu_block=%llu issue_pipe_block=%llu issue_div_block=%llu issue_csr_block=%llu issue_scoreboard_block=%llu issue_unclassified_block=%llu\n",
                m_step_count,
                m_profile_issue,
                m_profile_retire,
@@ -141,9 +167,22 @@ public:
                m_profile_predictor_recover,
                m_profile_redirect,
                m_profile_interrupt,
-               m_profile_issue_blocked);
+               m_profile_issue_blocked,
+               m_profile_fetch_request,
+               m_profile_fetch_wait,
+               m_profile_fetch_response,
+               m_profile_fetch_response_drop,
+               m_profile_fetch_backpressure,
+               m_profile_fetch_memory_block,
+               m_profile_fetch_redirect,
+               m_profile_issue_lsu_block,
+               m_profile_issue_pipe_block,
+               m_profile_issue_div_block,
+               m_profile_issue_csr_block,
+               m_profile_issue_scoreboard_block,
+               m_profile_issue_unclassified_block);
         if (m_workload_profile_start_seen && m_workload_profile_end_seen)
-            printf("WSL_WORKLOAD_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu predictor_event=%llu predictor_taken=%llu predictor_correct=%llu predictor_mispredict=%llu predictor_recover=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
+            printf("WSL_WORKLOAD_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu predictor_event=%llu predictor_taken=%llu predictor_correct=%llu predictor_mispredict=%llu predictor_recover=%llu redirect=%llu interrupt=%llu issue_blocked=%llu fetch_req=%llu fetch_wait=%llu fetch_resp=%llu fetch_drop=%llu fetch_backpressure=%llu fetch_mem_block=%llu fetch_redirect=%llu issue_lsu_block=%llu issue_pipe_block=%llu issue_div_block=%llu issue_csr_block=%llu issue_scoreboard_block=%llu issue_unclassified_block=%llu\n",
                    m_workload_profile_cycle_count,
                    m_workload_profile_issue,
                    m_workload_profile_retire,
@@ -165,7 +204,20 @@ public:
                    m_workload_profile_predictor_recover,
                    m_workload_profile_redirect,
                    m_workload_profile_interrupt,
-                   m_workload_profile_issue_blocked);
+                   m_workload_profile_issue_blocked,
+                   m_workload_profile_fetch_request,
+                   m_workload_profile_fetch_wait,
+                   m_workload_profile_fetch_response,
+                   m_workload_profile_fetch_response_drop,
+                   m_workload_profile_fetch_backpressure,
+                   m_workload_profile_fetch_memory_block,
+                   m_workload_profile_fetch_redirect,
+                   m_workload_profile_issue_lsu_block,
+                   m_workload_profile_issue_pipe_block,
+                   m_workload_profile_issue_div_block,
+                   m_workload_profile_issue_csr_block,
+                   m_workload_profile_issue_scoreboard_block,
+                   m_workload_profile_issue_unclassified_block);
         else
             printf("WSL_WORKLOAD_PROFILE_MISSING start=%d end=%d\n",
                    m_workload_profile_start_seen ? 1 : 0,
@@ -197,6 +249,19 @@ public:
         m_profile_redirect      += issue->profile_redirect();
         m_profile_interrupt     += issue->profile_interrupt();
         m_profile_issue_blocked += issue->profile_issue_blocked();
+        m_profile_fetch_request += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_request();
+        m_profile_fetch_wait += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_wait();
+        m_profile_fetch_response += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_response();
+        m_profile_fetch_response_drop += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_response_drop();
+        m_profile_fetch_backpressure += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_backpressure();
+        m_profile_fetch_memory_block += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_memory_block();
+        m_profile_fetch_redirect += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_redirect();
+        m_profile_issue_lsu_block += issue->profile_issue_lsu_block();
+        m_profile_issue_pipe_block += issue->profile_issue_pipe_block();
+        m_profile_issue_div_block += issue->profile_issue_div_block();
+        m_profile_issue_csr_block += issue->profile_issue_csr_block();
+        m_profile_issue_scoreboard_block += issue->profile_issue_scoreboard_block();
+        m_profile_issue_unclassified_block += issue->profile_issue_unclassified_block();
 
         const bool predictor_debug_event = predictor->profile_predictor_mispredict() ||
                                            predictor->profile_predictor_recover() ||
@@ -257,6 +322,19 @@ public:
             m_workload_profile_redirect       += issue->profile_redirect();
             m_workload_profile_interrupt      += issue->profile_interrupt();
             m_workload_profile_issue_blocked += issue->profile_issue_blocked();
+            m_workload_profile_fetch_request += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_request();
+            m_workload_profile_fetch_wait += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_wait();
+            m_workload_profile_fetch_response += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_response();
+            m_workload_profile_fetch_response_drop += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_response_drop();
+            m_workload_profile_fetch_backpressure += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_backpressure();
+            m_workload_profile_fetch_memory_block += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_memory_block();
+            m_workload_profile_fetch_redirect += m_dut->m_rtl->v->u_core->u_fetch->profile_fetch_redirect();
+            m_workload_profile_issue_lsu_block += issue->profile_issue_lsu_block();
+            m_workload_profile_issue_pipe_block += issue->profile_issue_pipe_block();
+            m_workload_profile_issue_div_block += issue->profile_issue_div_block();
+            m_workload_profile_issue_csr_block += issue->profile_issue_csr_block();
+            m_workload_profile_issue_scoreboard_block += issue->profile_issue_scoreboard_block();
+            m_workload_profile_issue_unclassified_block += issue->profile_issue_unclassified_block();
         }
     }
 
@@ -284,6 +362,19 @@ public:
         m_workload_profile_redirect = 0;
         m_workload_profile_interrupt = 0;
         m_workload_profile_issue_blocked = 0;
+        m_workload_profile_fetch_request = 0;
+        m_workload_profile_fetch_wait = 0;
+        m_workload_profile_fetch_response = 0;
+        m_workload_profile_fetch_response_drop = 0;
+        m_workload_profile_fetch_backpressure = 0;
+        m_workload_profile_fetch_memory_block = 0;
+        m_workload_profile_fetch_redirect = 0;
+        m_workload_profile_issue_lsu_block = 0;
+        m_workload_profile_issue_pipe_block = 0;
+        m_workload_profile_issue_div_block = 0;
+        m_workload_profile_issue_csr_block = 0;
+        m_workload_profile_issue_scoreboard_block = 0;
+        m_workload_profile_issue_unclassified_block = 0;
     }
 
     //-----------------------------------------------------------------
@@ -316,6 +407,19 @@ public:
         m_profile_redirect = 0;
         m_profile_interrupt = 0;
         m_profile_issue_blocked = 0;
+        m_profile_fetch_request = 0;
+        m_profile_fetch_wait = 0;
+        m_profile_fetch_response = 0;
+        m_profile_fetch_response_drop = 0;
+        m_profile_fetch_backpressure = 0;
+        m_profile_fetch_memory_block = 0;
+        m_profile_fetch_redirect = 0;
+        m_profile_issue_lsu_block = 0;
+        m_profile_issue_pipe_block = 0;
+        m_profile_issue_div_block = 0;
+        m_profile_issue_csr_block = 0;
+        m_profile_issue_scoreboard_block = 0;
+        m_profile_issue_unclassified_block = 0;
         m_workload_profile_active = false;
         m_workload_profile_start_seen = false;
         m_workload_profile_end_seen = false;
@@ -451,6 +555,19 @@ public:
         m_profile_redirect = 0;
         m_profile_interrupt = 0;
         m_profile_issue_blocked = 0;
+        m_profile_fetch_request = 0;
+        m_profile_fetch_wait = 0;
+        m_profile_fetch_response = 0;
+        m_profile_fetch_response_drop = 0;
+        m_profile_fetch_backpressure = 0;
+        m_profile_fetch_memory_block = 0;
+        m_profile_fetch_redirect = 0;
+        m_profile_issue_lsu_block = 0;
+        m_profile_issue_pipe_block = 0;
+        m_profile_issue_div_block = 0;
+        m_profile_issue_csr_block = 0;
+        m_profile_issue_scoreboard_block = 0;
+        m_profile_issue_unclassified_block = 0;
         m_workload_profile_active = false;
         m_workload_profile_start_seen = false;
         m_workload_profile_end_seen = false;
