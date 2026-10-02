@@ -1,6 +1,6 @@
 # Performance Measurement Baseline
 
-Date: 2026-10-01
+Date: 2026-10-02
 Scope: `riscv_core` + `top_tcm_axi` TCM, RV32IM, Machine mode, MMU off
 
 ## Measurement contract
@@ -85,7 +85,20 @@ verification changes.
 
 ## Observed smoke result
 
-Both environments produced the same CoreMark correctness values:
+Both environments produced the same CoreMark correctness values before and
+after the direct branch-redirect latency experiment. The software interval is
+bounded by the CoreMark port's `mcycle` and `minstret` reads:
+
+| Revision | Cycles | Retired | CPI x1000 |
+| --- | ---: | ---: | ---: |
+| Before redirect experiment | 423,772 | 315,440 | 1,343 |
+| After redirect experiment | 384,726 | 315,440 | 1,219 |
+
+The after revision reduced the one-iteration smoke interval by 9.21%. The
+retired count and correctness values are unchanged. This is a controlled
+smoke comparison, not a reportable CoreMark score.
+
+Both environments produced the following CoreMark correctness values:
 
 ```text
 2K validation run parameters for coremark.
@@ -95,7 +108,7 @@ seedcrc          : 0x18f2
 [0]crcmatrix     : 0x0747
 [0]crcstate      : 0x8d84
 [0]crcfinal      : 0xe3c1
-COREMARK_METRICS cycles=423772 retired=315440 cpi_x1000=1343
+COREMARK_METRICS cycles=384726 retired=315440 cpi_x1000=1219
 ```
 
 The one-iteration smoke run also prints `Total time (secs): 0` and the

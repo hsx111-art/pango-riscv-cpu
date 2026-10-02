@@ -1,12 +1,13 @@
 # AI Microbenchmark and Microarchitecture Profiling Baseline
 
-Date: 2026-10-01
+Date: 2026-10-02
 Scope: `riscv_core` + `top_tcm_axi` TCM, RV32IM, Machine mode, MMU off
 
-This record defines the first repeatable integer AI-oriented workload baseline
-for the competition branch. It is a measurement and verification artifact,
-not an architectural optimization result. The CPU RTL datapath and pipeline
-behavior are unchanged.
+This record defines the repeatable integer AI-oriented workload and the first
+controlled microarchitecture comparison for the competition branch. The
+profiling hooks are verification-only. The redirect experiment changes only
+fetch control timing; it does not add a predictor, change the issue pipeline,
+or change the ISA.
 
 ## Workloads
 
@@ -30,6 +31,12 @@ retired = end_minstret - start_minstret
 CPI     = cycles / retired
 ```
 
+The profiling marker interval is separately observed by both harnesses. The
+marker-bounded diagnostic interval excludes the marker instructions but has a
+one-sample boundary difference between SystemC and ModelSim. The software
+counter interval includes the marker instructions and is the architectural
+comparison authority.
+
 Build configuration:
 
 ```text
@@ -42,21 +49,32 @@ TCM       = 64 KiB
 AI_REPEAT = 16
 ```
 
+## Redirect experiment
+
+The profiling-only state buffered every `branch_request_i` in `branch_q` and
+updated `pc_f_q` from that buffer on the following cycle. The tested change in
+`core/riscv/riscv_fetch.v` consumes a request in the current cycle when fetch is
+not stalled, while retaining `branch_q` as the fallback when fetch is stalled.
+The existing registered response-discard pulse remains in place. This is a
+single taken-redirect latency experiment; it is not branch prediction and it
+does not change branch target calculation or retirement semantics.
+
 ## Workload interval results
 
 The software interval is identical in both supported environments. `cpi_x1000`
 is CPI multiplied by 1000 with integer arithmetic.
 
-| Workload | Cycles | Retired | CPI x1000 | Checksum |
-| --- | ---: | ---: | ---: | ---: |
-| `dot_i8` | 14,402 | 11,318 | 1,272 | 4,656 |
-| `gemm_i8` | 134,082 | 117,560 | 1,140 | 49 |
-| `conv_i8` | 178,403 | 150,617 | 1,184 | -3 |
-| `relu_i8` | 19,073 | 16,887 | 1,129 | 158 |
+| Workload | Before cycles | After cycles | Change | After retired | After CPI x1000 | Checksum |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `dot_i8` | 14,402 | 13,392 | -7.01% | 11,322 | 1,182 | 4,656 |
+| `gemm_i8` | 134,082 | 125,841 | -6.15% | 117,564 | 1,070 | 49 |
+| `conv_i8` | 178,403 | 169,138 | -5.19% | 150,621 | 1,122 | -3 |
+| `relu_i8` | 19,073 | 18,000 | -5.63% | 16,891 | 1,065 | 158 |
 
-These are the numbers to use for comparing later CPU implementations. The
-full harness counters include startup, output, and simulation-exit activity
-and must not replace the bracketed workload interval.
+The checksums are unchanged. These bracketed architectural counter values are
+the numbers to use for comparing later CPU implementations. The full harness
+counters include startup, output, and simulation-exit activity and must not
+replace the bracketed workload interval.
 
 ## Verification-only profile events
 
@@ -71,7 +89,9 @@ load store mul div csr branch branch_taken redirect interrupt issue_blocked
 
 The following profile counts were observed in both environments. The harness
 cycle total differs by one boundary sample between SystemC and ModelSim, while
-the event counts and workload intervals agree.
+the event counts and workload intervals agree. These counts are retained as a
+diagnostic reference for the redirect experiment; they are not a replacement
+for the bracketed architectural counters above.
 
 | Workload | Issue | Retire | Pipe hold | Div hold | CSR hold | Load | Store | Mul | Div | Branch | Taken | Redirect | Blocked |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -83,8 +103,10 @@ the event counts and workload intervals agree.
 The profile signals are diagnostic counters, not architectural CSRs. They are
 sampled at the harness clock boundary and are intended to identify hypotheses
 for later work such as branch redirection cost, divider hold time, or issue
-blocking. Any optimization decision must be rechecked against the same
-workload interval counters and the full 70-entry regression.
+blocking. The redirect experiment was accepted only because the checksums and
+architectural intervals remained correct in both environments and the full
+70-entry regression passed. Any later optimization decision must use the same
+workload boundaries and repeat that regression.
 
 ## Reproduction
 
@@ -98,11 +120,13 @@ MODELSIM_AI_REGRESSION_PASS AI_REPEAT=16.
 
 The workload intervals and profile event counts agree across the two
 simulation environments, which is sufficient to establish a repeatable
-comparison point for later RTL revisions. The event counters are sampled
-diagnostics: they do not prove that a particular event is the sole cause of a
-cycle, and they do not replace architectural `mcycle`/`minstret` measurements.
-In particular, the harness cycle total includes boot, output, and termination
-activity, while each workload interval excludes that activity.
+comparison point for later RTL revisions. The measured direct-redirect change
+reduced the four workload intervals by 5.19% to 7.01% with unchanged
+checksums. This is evidence for the tested latency hypothesis, not a general
+performance claim: the event counters are sampled diagnostics, and they do
+not replace architectural `mcycle`/`minstret` measurements. In particular,
+the harness cycle total includes boot, output, and termination activity, while
+each workload interval excludes that activity.
 
 This baseline is ready for hypothesis generation and regression comparison,
 not for claiming an optimization win by itself. A later change must preserve
