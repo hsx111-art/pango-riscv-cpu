@@ -1,7 +1,8 @@
 `timescale 1ns/1ps
 
 module tb_tcm_basic #(
-    parameter ENABLE_BRANCH_PREDICTOR = 0
+    parameter ENABLE_BRANCH_PREDICTOR = 0,
+    parameter ENABLE_BRANCH_PREDICTOR_REDIRECT = 0
 );
 
     reg         clk_i;
@@ -64,7 +65,8 @@ module tb_tcm_basic #(
         .TCM_MEM_BASE(32'h00000000),
         .MEM_CACHE_ADDR_MIN(32'h00000000),
         .MEM_CACHE_ADDR_MAX(32'hffffffff),
-        .ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR)
+        .ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR),
+        .ENABLE_BRANCH_PREDICTOR_REDIRECT(ENABLE_BRANCH_PREDICTOR_REDIRECT)
     ) dut (
         .clk_i(clk_i),
         .rst_i(rst_i),

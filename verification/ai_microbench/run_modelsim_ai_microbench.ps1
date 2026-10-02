@@ -2,7 +2,9 @@ param(
     [string]$ModelSimHome = $(if ($env:MODELSIM_HOME) { $env:MODELSIM_HOME } else { 'A:\modletech64_2020.4' }),
     [string]$WslDistribution = 'Ubuntu-A',
     [int]$AiRepeat = 16,
-    [int]$MaxCycles = 2000000
+    [int]$MaxCycles = 2000000,
+    [int]$EnableBranchPredictor = 0,
+    [int]$EnableBranchPredictorRedirect = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,6 +89,8 @@ foreach ($workload in @('dot_i8', 'gemm_i8', 'conv_i8', 'relu_i8')) {
         '-batch',
         '-modelsimini', $modelsimIni,
         'work.tb_tcm_regression',
+        "-gENABLE_BRANCH_PREDICTOR=$EnableBranchPredictor",
+        "-gENABLE_BRANCH_PREDICTOR_REDIRECT=$EnableBranchPredictorRedirect",
         "+MEMH=$(($memh.Replace('\', '/')))",
         "+TESTNAME=ai/$workload",
         "+MAX_CYCLES=$MaxCycles",

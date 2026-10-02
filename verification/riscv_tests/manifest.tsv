@@ -69,3 +69,4 @@ directed/misaligned_store	Machine trap	run	misaligned store cause, mtval, mepc a
 directed/misaligned_fetch	Machine trap	run	misaligned instruction target cause and trap return
 directed/external_interrupt	Machine interrupt	run	machine external interrupt entry, mtval, and MRET	IRQ_CYCLE=200
 directed/timer_interrupt	Machine interrupt	run	internal mtimecmp timer interrupt entry and MRET
+directed/predictor_recovery	Branch predictor recovery	run	both prediction-mismatch directions suppress wrong-path store, CSR write, and illegal instruction

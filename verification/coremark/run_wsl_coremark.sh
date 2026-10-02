@@ -8,6 +8,8 @@ TOTAL_DATA_SIZE="${TOTAL_DATA_SIZE:-2000}"
 CLOCK_HZ="${CLOCK_HZ:-1000000}"
 RUN_TYPE="${RUN_TYPE:-validation}"
 TEST_TIMEOUT_SEC="${TEST_TIMEOUT_SEC:-120}"
+ENABLE_BRANCH_PREDICTOR="${ENABLE_BRANCH_PREDICTOR:-0}"
+ENABLE_BRANCH_PREDICTOR_REDIRECT="${ENABLE_BRANCH_PREDICTOR_REDIRECT:-0}"
 
 export PATH="${RISCV_TOOLCHAIN_BIN:-$HOME/.local/riscv-tools/usr/bin}:$PATH"
 
@@ -23,11 +25,22 @@ make -C "$ROOT_DIR/verification/coremark" clean
 make -C "$ROOT_DIR/verification/coremark" \
     OUT="$OUT_DIR" ITERATIONS="$ITERATIONS" TOTAL_DATA_SIZE="$TOTAL_DATA_SIZE" \
     CLOCK_HZ="$CLOCK_HZ" RUN_TYPE="$RUN_TYPE"
+echo "COREMARK_WSL_CONFIG predictor=$ENABLE_BRANCH_PREDICTOR redirect=$ENABLE_BRANCH_PREDICTOR_REDIRECT"
 
 pushd "$ROOT_DIR/top_tcm_axi/tb" >/dev/null
-if [[ ! -x build/test.x ]]; then
-    bash "$ROOT_DIR/verification/wsl_baseline.sh" >/dev/null
+env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top clean
+VERILATE_PARAMS="--trace"
+if [[ "$ENABLE_BRANCH_PREDICTOR" == "1" ]]; then
+    VERILATE_PARAMS="$VERILATE_PARAMS -GENABLE_BRANCH_PREDICTOR=1"
 fi
+if [[ "$ENABLE_BRANCH_PREDICTOR_REDIRECT" == "1" ]]; then
+    VERILATE_PARAMS="$VERILATE_PARAMS -GENABLE_BRANCH_PREDICTOR_REDIRECT=1"
+fi
+env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top VERILATE_PARAMS="$VERILATE_PARAMS"
+env -u NAME -u SRC make -f makefile.build_verilated clean
+env -u NAME -u SRC make -f makefile.build_verilated -j2
+env -u NAME -u SRC make -f makefile.build_sysc_tb clean
+env -u NAME -u SRC make -f makefile.build_sysc_tb -j2
 
 set +e
 output=$(timeout --foreground "${TEST_TIMEOUT_SEC}s" \

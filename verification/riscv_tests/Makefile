@@ -29,7 +29,7 @@ TEST_NAMES := $(addprefix rv32ui/,$(UI_TESTS)) \
 
 DIRECTED_TESTS := ecall ebreak wfi fence illegal counters misaligned_load \
                   misaligned_store misaligned_fetch external_interrupt \
-                  timer_interrupt
+                  timer_interrupt predictor_recovery
 
 TEST_NAMES += $(addprefix directed/,$(DIRECTED_TESTS))
 ELFS := $(addprefix $(OUT)/,$(addsuffix .elf,$(TEST_NAMES)))

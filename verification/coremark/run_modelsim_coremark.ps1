@@ -5,7 +5,9 @@ param(
     [ValidateSet('performance', 'validation', 'profile')]
     [string]$RunType = 'validation',
     [int]$ClockHz = 1000000,
-    [int]$MaxCycles = 2000000
+    [int]$MaxCycles = 2000000,
+    [int]$EnableBranchPredictor = 0,
+    [int]$EnableBranchPredictorRedirect = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -86,6 +88,8 @@ $simArgs = @(
     '-batch',
     '-modelsimini', $modelsimIni,
     'work.tb_tcm_regression',
+    "-gENABLE_BRANCH_PREDICTOR=$EnableBranchPredictor",
+    "-gENABLE_BRANCH_PREDICTOR_REDIRECT=$EnableBranchPredictorRedirect",
     "+MEMH=$(($memh.Replace('\', '/')))",
     '+TESTNAME=coremark',
     "+MAX_CYCLES=$MaxCycles",
