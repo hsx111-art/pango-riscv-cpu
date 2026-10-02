@@ -1,10 +1,11 @@
 //-----------------------------------------------------------------
-// Small, optional dynamic branch predictor prototype.
+// Small, optional dynamic branch predictor.
 //
-// The predictor is deliberately conservative: one unresolved branch is
-// tracked at a time, JALR is not predicted, and control-flow redirection is
-// disabled by default because the current pipeline has no squash mechanism
-// for wrong-path instructions issued before execute-stage resolution.
+// The predictor deliberately tracks one unresolved conditional branch at a
+// time. Redirect is disabled by default. When enabled, the fetch/issue
+// boundary uses recover_valid_o to prevent the wrong-path instruction from
+// entering the execution pipeline while riscv_fetch drops the outstanding
+// response and redirects to the resolved PC.
 //-----------------------------------------------------------------
 module riscv_branch_predictor
 #(
@@ -108,21 +109,23 @@ assign suppress_redirect_o = redirect_enabled_w && branch_d_valid_i && pending_q
                              (pending_source_q == branch_d_source_i) &&
                              (pending_target_q == branch_d_pc_i);
 
-// A predicted-taken branch that resolves not-taken must recover to its
-// sequential PC. Predicted-not-taken/taken recovery is handled by the
-// existing branch_d redirect path.
-assign recover_valid_o = redirect_enabled_w && resolve_valid_i && pending_q &&
-                         pending_taken_q &&
-                         (pending_source_q == resolve_source_i) &&
-                         !resolve_taken_i;
+// Every outcome mismatch is a recovery event. resolve_pc_i is already the
+// architecturally correct next PC: execute supplies the target for a taken
+// branch and the fall-through PC for a not-taken branch. This also covers
+// predicted-not-taken/taken; the direct branch path and recovery agree on the
+// same target.
+wire resolve_match_w = resolve_valid_i && pending_q &&
+                       (pending_source_q == resolve_source_i);
+wire recover_mismatch_w = redirect_enabled_w && resolve_match_w &&
+                          (pending_taken_q != resolve_taken_i);
+
+assign recover_valid_o = recover_mismatch_w;
 assign recover_pc_o    = resolve_pc_i;
 assign recover_priv_o  = pending_priv_q;
 assign predictor_recover_o = recover_valid_o;
-assign predictor_correct_o = (ENABLE != 0) && resolve_valid_i && pending_q &&
-                             (pending_source_q == resolve_source_i) &&
+assign predictor_correct_o = (ENABLE != 0) && resolve_match_w &&
                              (pending_taken_q == resolve_taken_i);
-assign predictor_mispredict_o = (ENABLE != 0) && resolve_valid_i && pending_q &&
-                                (pending_source_q == resolve_source_i) &&
+assign predictor_mispredict_o = (ENABLE != 0) && resolve_match_w &&
                                 (pending_taken_q != resolve_taken_i);
 
 integer i;

@@ -52,6 +52,7 @@ module riscv_core
     ,parameter SUPPORT_REGFILE_XILINX = 0
     ,parameter EXTRA_DECODE_STAGE = 0
     ,parameter ENABLE_BRANCH_PREDICTOR = 0
+    ,parameter ENABLE_BRANCH_PREDICTOR_REDIRECT = 0
     ,parameter MEM_CACHE_ADDR_MIN = 32'h80000000
     ,parameter MEM_CACHE_ADDR_MAX = 32'h8fffffff
 )
@@ -131,6 +132,7 @@ wire  [ 10:0]  mmu_lsu_resp_tag_w;
 wire  [ 10:0]  mmu_lsu_req_tag_w;
 wire  [ 31:0]  opcode_ra_operand_w;
 wire           squash_decode_w;
+wire           predictor_recover_w;
 wire           fetch_dec_fault_page_w;
 wire  [ 31:0]  mul_opcode_opcode_w;
 wire           exec_hold_w;
@@ -554,8 +556,9 @@ u_issue
     ,.csr_write_e1_i(csr_write_e1_w)
     ,.csr_result_e1_wdata_i(csr_result_e1_wdata_w)
     ,.csr_result_e1_exception_i(csr_result_e1_exception_w)
-    ,.lsu_stall_i(lsu_stall_w)
-    ,.take_interrupt_i(take_interrupt_w)
+     ,.lsu_stall_i(lsu_stall_w)
+     ,.take_interrupt_i(take_interrupt_w)
+     ,.branch_predictor_recover_i(predictor_recover_w)
 
     // Outputs
     ,.fetch_accept_o(fetch_accept_w)
@@ -616,6 +619,7 @@ riscv_fetch
 #(
      .SUPPORT_MMU(SUPPORT_MMU)
     ,.ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR)
+    ,.ENABLE_BRANCH_PREDICTOR_REDIRECT(ENABLE_BRANCH_PREDICTOR_REDIRECT)
 )
 u_fetch
 (
@@ -649,8 +653,9 @@ u_fetch
     ,.icache_flush_o(mmu_ifetch_flush_w)
     ,.icache_invalidate_o(mmu_ifetch_invalidate_w)
     ,.icache_pc_o(mmu_ifetch_pc_w)
-    ,.icache_priv_o(fetch_in_priv_w)
-    ,.squash_decode_o(squash_decode_w)
+     ,.icache_priv_o(fetch_in_priv_w)
+     ,.squash_decode_o(squash_decode_w)
+     ,.predictor_recover_o(predictor_recover_w)
 );
 
 

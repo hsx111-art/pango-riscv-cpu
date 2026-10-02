@@ -46,6 +46,7 @@ module riscv_fetch
 #(
      parameter SUPPORT_MMU      = 1
     ,parameter ENABLE_BRANCH_PREDICTOR = 0
+    ,parameter ENABLE_BRANCH_PREDICTOR_REDIRECT = 0
 )
 //-----------------------------------------------------------------
 // Ports
@@ -83,6 +84,7 @@ module riscv_fetch
     ,output [ 31:0]  icache_pc_o
     ,output [  1:0]  icache_priv_o
     ,output          squash_decode_o
+    ,output          predictor_recover_o
 );
 
 
@@ -313,6 +315,7 @@ assign fetch_fault_page_o  = skid_valid_q ? skid_buffer_q[65] : icache_page_faul
 riscv_branch_predictor
 #(
      .ENABLE(ENABLE_BRANCH_PREDICTOR)
+    ,.ENABLE_REDIRECT(ENABLE_BRANCH_PREDICTOR_REDIRECT)
 )
 u_predictor
 (
@@ -344,6 +347,8 @@ u_predictor
     ,.predictor_mispredict_o(predictor_mispredict_w)
     ,.predictor_recover_o(predictor_recover_event_w)
 );
+
+assign predictor_recover_o = predictor_recover_w;
 
 `ifdef verilator
 function [0:0] profile_predictor_event; /*verilator public*/

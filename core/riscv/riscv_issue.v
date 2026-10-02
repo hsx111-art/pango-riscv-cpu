@@ -98,6 +98,7 @@ module riscv_issue
     ,input  [  5:0]  csr_result_e1_exception_i
     ,input           lsu_stall_i
     ,input           take_interrupt_i
+    ,input           branch_predictor_recover_i
 
     // Outputs
     ,output          fetch_accept_o
@@ -177,7 +178,11 @@ else if (branch_csr_request_i)
 //-------------------------------------------------------------
 // Issue Select
 //-------------------------------------------------------------
-wire opcode_valid_w = fetch_valid_i & ~squash_w & ~branch_csr_request_i;
+// A recovery pulse belongs to the already-resolved branch. Do not accept the
+// concurrent fetch response as an issue candidate; it is the younger
+// speculative instruction on the wrong path.
+wire opcode_valid_w = fetch_valid_i & ~squash_w & ~branch_csr_request_i &
+                      ~branch_predictor_recover_i;
 
 // Branch request (CSR branch - ecall, xret, or branch instruction)
 assign branch_request_o     = branch_csr_request_i | branch_d_exec_request_i;
@@ -424,7 +429,8 @@ assign mul_opcode_valid_o   = enable_muldiv_w & opcode_issue_r;
 assign div_opcode_valid_o   = enable_muldiv_w & opcode_issue_r;
 assign interrupt_inhibit_o  = csr_pending_q || issue_csr_w;
 
-assign fetch_accept_o       = opcode_valid_w ? (opcode_accept_r & ~take_interrupt_i) : 1'b1;
+assign fetch_accept_o       = opcode_valid_w ? (opcode_accept_r & ~take_interrupt_i) :
+                             (fetch_valid_i && branch_predictor_recover_i) ? 1'b0 : 1'b1;
 
 assign stall_w              = pipe_stall_raw_w;
 
