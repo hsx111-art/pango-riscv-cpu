@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 
-module tb_tcm_regression;
+module tb_tcm_regression #(
+    parameter ENABLE_BRANCH_PREDICTOR = 0
+);
 
     reg         clk_i;
     reg         rst_i;
@@ -76,6 +78,11 @@ module tb_tcm_regression;
     integer      profile_csr_count;
     integer      profile_branch_count;
     integer      profile_branch_taken_count;
+    integer      profile_predictor_event_count;
+    integer      profile_predictor_taken_count;
+    integer      profile_predictor_correct_count;
+    integer      profile_predictor_mispredict_count;
+    integer      profile_predictor_recover_count;
     integer      profile_redirect_count;
     integer      profile_interrupt_count;
     integer      profile_issue_blocked_count;
@@ -97,6 +104,11 @@ module tb_tcm_regression;
     integer      workload_profile_csr_count;
     integer      workload_profile_branch_count;
     integer      workload_profile_branch_taken_count;
+    integer      workload_profile_predictor_event_count;
+    integer      workload_profile_predictor_taken_count;
+    integer      workload_profile_predictor_correct_count;
+    integer      workload_profile_predictor_mispredict_count;
+    integer      workload_profile_predictor_recover_count;
     integer      workload_profile_redirect_count;
     integer      workload_profile_interrupt_count;
     integer      workload_profile_issue_blocked_count;
@@ -106,7 +118,8 @@ module tb_tcm_regression;
         .BOOT_VECTOR(32'h00002000),
         .TCM_MEM_BASE(32'h00000000),
         .MEM_CACHE_ADDR_MIN(32'h00000000),
-        .MEM_CACHE_ADDR_MAX(32'hffffffff)
+        .MEM_CACHE_ADDR_MAX(32'hffffffff),
+        .ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR)
     ) dut (
         .clk_i(clk_i),
         .rst_i(rst_i),
@@ -166,6 +179,11 @@ module tb_tcm_regression;
     wire profile_marker_end =
         profile_marker_write &&
         (dut.u_core.u_csr.u_csrfile.csr_wdata_i[31:24] == 8'h03);
+    wire predictor_event = dut.u_core.u_fetch.u_predictor.predictor_event_o;
+    wire predictor_taken = dut.u_core.u_fetch.u_predictor.predictor_taken_event_o;
+    wire predictor_correct = dut.u_core.u_fetch.u_predictor.predictor_correct_o;
+    wire predictor_mispredict = dut.u_core.u_fetch.u_predictor.predictor_mispredict_o;
+    wire predictor_recover = dut.u_core.u_fetch.u_predictor.predictor_recover_o;
 
     always #5 clk_i = ~clk_i;
 
@@ -224,6 +242,11 @@ module tb_tcm_regression;
         profile_csr_count = 0;
         profile_branch_count = 0;
         profile_branch_taken_count = 0;
+        profile_predictor_event_count = 0;
+        profile_predictor_taken_count = 0;
+        profile_predictor_correct_count = 0;
+        profile_predictor_mispredict_count = 0;
+        profile_predictor_recover_count = 0;
         profile_redirect_count = 0;
         profile_interrupt_count = 0;
         profile_issue_blocked_count = 0;
@@ -245,6 +268,11 @@ module tb_tcm_regression;
         workload_profile_csr_count = 0;
         workload_profile_branch_count = 0;
         workload_profile_branch_taken_count = 0;
+        workload_profile_predictor_event_count = 0;
+        workload_profile_predictor_taken_count = 0;
+        workload_profile_predictor_correct_count = 0;
+        workload_profile_predictor_mispredict_count = 0;
+        workload_profile_predictor_recover_count = 0;
         workload_profile_redirect_count = 0;
         workload_profile_interrupt_count = 0;
         workload_profile_issue_blocked_count = 0;
@@ -284,6 +312,11 @@ module tb_tcm_regression;
             workload_profile_csr_count = 0;
             workload_profile_branch_count = 0;
             workload_profile_branch_taken_count = 0;
+            workload_profile_predictor_event_count = 0;
+            workload_profile_predictor_taken_count = 0;
+            workload_profile_predictor_correct_count = 0;
+            workload_profile_predictor_mispredict_count = 0;
+            workload_profile_predictor_recover_count = 0;
             workload_profile_redirect_count = 0;
             workload_profile_interrupt_count = 0;
             workload_profile_issue_blocked_count = 0;
@@ -293,7 +326,7 @@ module tb_tcm_regression;
             workload_profile_active = 1'b0;
             workload_profile_end_seen = 1'b1;
             workload_profile_cycle_count = cycle_count - workload_profile_start_cycle;
-            $display("MODELSIM_WORKLOAD_PROFILE cycles=%0d issue=%0d retire=%0d lsu_stall=%0d pipe_stall=%0d div_hold=%0d csr_hold=%0d load=%0d store=%0d mul=%0d div=%0d csr=%0d branch=%0d branch_taken=%0d redirect=%0d interrupt=%0d issue_blocked=%0d", workload_profile_cycle_count, workload_profile_issue_count, workload_profile_retire_count, workload_profile_lsu_stall_count, workload_profile_pipe_stall_count, workload_profile_div_hold_count, workload_profile_csr_hold_count, workload_profile_load_count, workload_profile_store_count, workload_profile_mul_count, workload_profile_div_count, workload_profile_csr_count, workload_profile_branch_count, workload_profile_branch_taken_count, workload_profile_redirect_count, workload_profile_interrupt_count, workload_profile_issue_blocked_count);
+            $display("MODELSIM_WORKLOAD_PROFILE cycles=%0d issue=%0d retire=%0d lsu_stall=%0d pipe_stall=%0d div_hold=%0d csr_hold=%0d load=%0d store=%0d mul=%0d div=%0d csr=%0d branch=%0d branch_taken=%0d predictor_event=%0d predictor_taken=%0d predictor_correct=%0d predictor_mispredict=%0d predictor_recover=%0d redirect=%0d interrupt=%0d issue_blocked=%0d", workload_profile_cycle_count, workload_profile_issue_count, workload_profile_retire_count, workload_profile_lsu_stall_count, workload_profile_pipe_stall_count, workload_profile_div_hold_count, workload_profile_csr_hold_count, workload_profile_load_count, workload_profile_store_count, workload_profile_mul_count, workload_profile_div_count, workload_profile_csr_count, workload_profile_branch_count, workload_profile_branch_taken_count, workload_profile_predictor_event_count, workload_profile_predictor_taken_count, workload_profile_predictor_correct_count, workload_profile_predictor_mispredict_count, workload_profile_predictor_recover_count, workload_profile_redirect_count, workload_profile_interrupt_count, workload_profile_issue_blocked_count);
         end
         if (!rst_i) begin
             if (dut.u_core.u_issue.opcode_issue_r && dut.u_core.u_issue.opcode_accept_r)
@@ -324,6 +357,16 @@ module tb_tcm_regression;
                 profile_branch_count = profile_branch_count + 1;
             if (dut.u_core.u_issue.branch_exec_is_taken_i)
                 profile_branch_taken_count = profile_branch_taken_count + 1;
+            if (predictor_event)
+                profile_predictor_event_count = profile_predictor_event_count + 1;
+            if (predictor_taken)
+                profile_predictor_taken_count = profile_predictor_taken_count + 1;
+            if (predictor_correct)
+                profile_predictor_correct_count = profile_predictor_correct_count + 1;
+            if (predictor_mispredict)
+                profile_predictor_mispredict_count = profile_predictor_mispredict_count + 1;
+            if (predictor_recover)
+                profile_predictor_recover_count = profile_predictor_recover_count + 1;
             if (dut.u_core.u_issue.branch_request_o)
                 profile_redirect_count = profile_redirect_count + 1;
             if (dut.u_core.u_issue.take_interrupt_i)
@@ -362,6 +405,16 @@ module tb_tcm_regression;
                     workload_profile_branch_count = workload_profile_branch_count + 1;
                 if (dut.u_core.u_issue.branch_exec_is_taken_i)
                     workload_profile_branch_taken_count = workload_profile_branch_taken_count + 1;
+                if (predictor_event)
+                    workload_profile_predictor_event_count = workload_profile_predictor_event_count + 1;
+                if (predictor_taken)
+                    workload_profile_predictor_taken_count = workload_profile_predictor_taken_count + 1;
+                if (predictor_correct)
+                    workload_profile_predictor_correct_count = workload_profile_predictor_correct_count + 1;
+                if (predictor_mispredict)
+                    workload_profile_predictor_mispredict_count = workload_profile_predictor_mispredict_count + 1;
+                if (predictor_recover)
+                    workload_profile_predictor_recover_count = workload_profile_predictor_recover_count + 1;
                 if (dut.u_core.u_issue.branch_request_o)
                     workload_profile_redirect_count = workload_profile_redirect_count + 1;
                 if (dut.u_core.u_issue.take_interrupt_i)
@@ -403,7 +456,7 @@ module tb_tcm_regression;
                     else
                         cpi_value = 0.0;
                     $display("MODELSIM_METRICS cycles=%0d retired=%0d retired_probe=%0d mcycle=%08x minstret=%08x cpi=%0.6f", cycle_count, dut.u_core.u_csr.u_csrfile.csr_minstret_q, retired_count, dut.u_core.u_csr.u_csrfile.csr_mcycle_q, dut.u_core.u_csr.u_csrfile.csr_minstret_q, cpi_value);
-                    $display("MODELSIM_PROFILE cycles=%0d issue=%0d retire=%0d lsu_stall=%0d pipe_stall=%0d div_hold=%0d csr_hold=%0d load=%0d store=%0d mul=%0d div=%0d csr=%0d branch=%0d branch_taken=%0d redirect=%0d interrupt=%0d issue_blocked=%0d", cycle_count, profile_issue_count, profile_retire_count, profile_lsu_stall_count, profile_pipe_stall_count, profile_div_hold_count, profile_csr_hold_count, profile_load_count, profile_store_count, profile_mul_count, profile_div_count, profile_csr_count, profile_branch_count, profile_branch_taken_count, profile_redirect_count, profile_interrupt_count, profile_issue_blocked_count);
+                    $display("MODELSIM_PROFILE cycles=%0d issue=%0d retire=%0d lsu_stall=%0d pipe_stall=%0d div_hold=%0d csr_hold=%0d load=%0d store=%0d mul=%0d div=%0d csr=%0d branch=%0d branch_taken=%0d predictor_event=%0d predictor_taken=%0d predictor_correct=%0d predictor_mispredict=%0d predictor_recover=%0d redirect=%0d interrupt=%0d issue_blocked=%0d", cycle_count, profile_issue_count, profile_retire_count, profile_lsu_stall_count, profile_pipe_stall_count, profile_div_hold_count, profile_csr_hold_count, profile_load_count, profile_store_count, profile_mul_count, profile_div_count, profile_csr_count, profile_branch_count, profile_branch_taken_count, profile_predictor_event_count, profile_predictor_taken_count, profile_predictor_correct_count, profile_predictor_mispredict_count, profile_predictor_recover_count, profile_redirect_count, profile_interrupt_count, profile_issue_blocked_count);
                     $display("MODELSIM_TEST_COMPLETE");
                     $finish;
                 end

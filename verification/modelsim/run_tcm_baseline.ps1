@@ -1,6 +1,7 @@
 param(
     [string]$ModelSimHome = $(if ($env:MODELSIM_HOME) { $env:MODELSIM_HOME } else { 'A:\modletech64_2020.4' }),
-    [string]$Image = ''
+    [string]$Image = '',
+    [int]$EnableBranchPredictor = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,7 +60,7 @@ try {
     }
 
     $simLog = Join-Path $build 'modelsim.log'
-    & $vsim -batch -modelsimini $modelsimIni work.tb_tcm_basic -do 'run -all; quit -f' 2>&1 | Tee-Object -FilePath $simLog
+    & $vsim -batch -modelsimini $modelsimIni work.tb_tcm_basic "-gENABLE_BRANCH_PREDICTOR=$EnableBranchPredictor" -do 'run -all; quit -f' 2>&1 | Tee-Object -FilePath $simLog
     $simExit = $LASTEXITCODE
     $simOutput = Get-Content -LiteralPath $simLog -Raw
     $expectedTests = @(

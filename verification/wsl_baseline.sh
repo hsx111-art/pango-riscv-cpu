@@ -8,6 +8,10 @@ SYSTEMC_HOME="${SYSTEMC_HOME:-/usr}"
 VERILATOR_SRC="${VERILATOR_SRC:-/usr/share/verilator/include}"
 LIB_OPT="${LIB_OPT:-/usr/lib/x86_64-linux-gnu/libsystemc.so}"
 TEST_IMAGE="${TEST_IMAGE:-$ROOT_DIR/isa_sim/images/basic.elf}"
+VERILATE_PARAMS="${VERILATE_PARAMS:---trace}"
+if [[ "${ENABLE_BRANCH_PREDICTOR:-0}" == "1" ]]; then
+    VERILATE_PARAMS="${VERILATE_PARAMS} -GENABLE_BRANCH_PREDICTOR=1"
+fi
 
 echo "WSL baseline root: $ROOT_DIR"
 echo "SystemC: $SYSTEMC_HOME"
@@ -19,12 +23,13 @@ env -u NAME -u SRC make -C "$ROOT_DIR/isa_sim" -j2
 
 pushd "$TB_DIR" >/dev/null
 env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top clean
-env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top
+env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top VERILATE_PARAMS="$VERILATE_PARAMS"
 env -u NAME -u SRC make -f makefile.build_verilated clean
 env -u NAME -u SRC make -f makefile.build_verilated -j2 \
     SYSTEMC_HOME="$SYSTEMC_HOME" \
     VERILATOR_SRC="$VERILATOR_SRC" \
     LIB_OPT="$LIB_OPT"
+env -u NAME -u SRC make -f makefile.build_sysc_tb clean
 env -u NAME -u SRC make -f makefile.build_sysc_tb -j2 \
     SYSTEMC_HOME="$SYSTEMC_HOME" \
     VERILATOR_SRC="$VERILATOR_SRC"

@@ -45,6 +45,11 @@ public:
     unsigned long long           m_profile_csr_issue;
     unsigned long long           m_profile_branch;
     unsigned long long           m_profile_branch_taken;
+    unsigned long long           m_profile_predictor_event;
+    unsigned long long           m_profile_predictor_taken;
+    unsigned long long           m_profile_predictor_correct;
+    unsigned long long           m_profile_predictor_mispredict;
+    unsigned long long           m_profile_predictor_recover;
     unsigned long long           m_profile_redirect;
     unsigned long long           m_profile_interrupt;
     unsigned long long           m_profile_issue_blocked;
@@ -52,6 +57,8 @@ public:
     bool                         m_workload_profile_start_seen;
     bool                         m_workload_profile_end_seen;
     unsigned                     m_workload_profile_start_step;
+    bool                         m_predictor_debug;
+    unsigned                     m_predictor_debug_events;
     unsigned                     m_workload_profile_cycle_count;
     unsigned long long           m_workload_profile_issue;
     unsigned long long           m_workload_profile_retire;
@@ -66,6 +73,11 @@ public:
     unsigned long long           m_workload_profile_csr_issue;
     unsigned long long           m_workload_profile_branch;
     unsigned long long           m_workload_profile_branch_taken;
+    unsigned long long           m_workload_profile_predictor_event;
+    unsigned long long           m_workload_profile_predictor_taken;
+    unsigned long long           m_workload_profile_predictor_correct;
+    unsigned long long           m_workload_profile_predictor_mispredict;
+    unsigned long long           m_workload_profile_predictor_recover;
     unsigned long long           m_workload_profile_redirect;
     unsigned long long           m_workload_profile_interrupt;
     unsigned long long           m_workload_profile_issue_blocked;
@@ -107,7 +119,7 @@ public:
         double cpi = minstret ? (double)mcycle / (double)minstret : 0.0;
         printf("WSL_METRICS steps=%u retired=%u mcycle=%08x minstret=%08x cpi=%.6f\n",
                m_step_count, minstret, mcycle, minstret, cpi);
-        printf("WSL_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
+        printf("WSL_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu predictor_event=%llu predictor_taken=%llu predictor_correct=%llu predictor_mispredict=%llu predictor_recover=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
                m_step_count,
                m_profile_issue,
                m_profile_retire,
@@ -122,11 +134,16 @@ public:
                m_profile_csr_issue,
                m_profile_branch,
                m_profile_branch_taken,
+               m_profile_predictor_event,
+               m_profile_predictor_taken,
+               m_profile_predictor_correct,
+               m_profile_predictor_mispredict,
+               m_profile_predictor_recover,
                m_profile_redirect,
                m_profile_interrupt,
                m_profile_issue_blocked);
         if (m_workload_profile_start_seen && m_workload_profile_end_seen)
-            printf("WSL_WORKLOAD_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
+            printf("WSL_WORKLOAD_PROFILE cycles=%u issue=%llu retire=%llu lsu_stall=%llu pipe_stall=%llu div_hold=%llu csr_hold=%llu load=%llu store=%llu mul=%llu div=%llu csr=%llu branch=%llu branch_taken=%llu predictor_event=%llu predictor_taken=%llu predictor_correct=%llu predictor_mispredict=%llu predictor_recover=%llu redirect=%llu interrupt=%llu issue_blocked=%llu\n",
                    m_workload_profile_cycle_count,
                    m_workload_profile_issue,
                    m_workload_profile_retire,
@@ -141,6 +158,11 @@ public:
                    m_workload_profile_csr_issue,
                    m_workload_profile_branch,
                    m_workload_profile_branch_taken,
+                   m_workload_profile_predictor_event,
+                   m_workload_profile_predictor_taken,
+                   m_workload_profile_predictor_correct,
+                   m_workload_profile_predictor_mispredict,
+                   m_workload_profile_predictor_recover,
                    m_workload_profile_redirect,
                    m_workload_profile_interrupt,
                    m_workload_profile_issue_blocked);
@@ -153,6 +175,7 @@ public:
     void sample_profile(bool count_workload)
     {
         auto issue = m_dut->m_rtl->v->u_core->u_issue;
+        auto predictor = m_dut->m_rtl->v->u_core->u_fetch->u_predictor;
         m_profile_issue          += issue->profile_issue();
         m_profile_retire        += issue->profile_retire();
         m_profile_lsu_stall     += issue->profile_lsu_stall();
@@ -166,9 +189,51 @@ public:
         m_profile_csr_issue     += issue->profile_csr_issue();
         m_profile_branch        += issue->profile_branch();
         m_profile_branch_taken += issue->profile_branch_taken();
+        m_profile_predictor_event      += predictor->profile_predictor_event();
+        m_profile_predictor_taken      += predictor->profile_predictor_taken();
+        m_profile_predictor_correct    += predictor->profile_predictor_correct();
+        m_profile_predictor_mispredict += predictor->profile_predictor_mispredict();
+        m_profile_predictor_recover    += predictor->profile_predictor_recover();
         m_profile_redirect      += issue->profile_redirect();
         m_profile_interrupt     += issue->profile_interrupt();
         m_profile_issue_blocked += issue->profile_issue_blocked();
+
+        const bool predictor_debug_event = predictor->profile_predictor_mispredict() ||
+                                           predictor->profile_predictor_recover() ||
+                                           predictor->__PVT__branch_d_valid_i;
+        if (m_predictor_debug && predictor_debug_event &&
+            m_predictor_debug_events < 200)
+        {
+            printf("PREDICTOR_DEBUG step=%u fetch_valid=%d fetch_pc=%08x instr=%08x "
+                   "pred_valid=%d pred_taken=%d pred_target=%08x pending=%d "
+                   "pending_source=%08x pending_target=%08x pending_taken=%d "
+                   "branch_d=%d branch_d_source=%08x branch_d_target=%08x "
+                   "resolve=%d resolve_source=%08x resolve_taken=%d resolve_pc=%08x "
+                   "correct=%d mispredict=%d recover=%d suppress=%d\n",
+                   m_step_count,
+                   predictor->__PVT__fetch_valid_i,
+                   predictor->__PVT__fetch_pc_i,
+                   predictor->__PVT__fetch_instr_i,
+                   predictor->__PVT__predict_valid_o,
+                   predictor->__PVT__predict_taken_o,
+                   predictor->__PVT__predict_target_o,
+                   predictor->__PVT__pending_q,
+                   predictor->__PVT__pending_source_q,
+                   predictor->__PVT__pending_target_q,
+                   predictor->__PVT__pending_taken_q,
+                   predictor->__PVT__branch_d_valid_i,
+                   predictor->__PVT__branch_d_source_i,
+                   predictor->__PVT__branch_d_pc_i,
+                   predictor->__PVT__resolve_valid_i,
+                   predictor->__PVT__resolve_source_i,
+                   predictor->__PVT__resolve_taken_i,
+                   predictor->__PVT__resolve_pc_i,
+                   predictor->__PVT__predictor_correct_o,
+                   predictor->__PVT__predictor_mispredict_o,
+                   predictor->__PVT__recover_valid_o,
+                   predictor->__PVT__suppress_redirect_o);
+            m_predictor_debug_events++;
+        }
         if (count_workload)
         {
             m_workload_profile_issue          += issue->profile_issue();
@@ -184,6 +249,11 @@ public:
             m_workload_profile_csr_issue      += issue->profile_csr_issue();
             m_workload_profile_branch         += issue->profile_branch();
             m_workload_profile_branch_taken  += issue->profile_branch_taken();
+            m_workload_profile_predictor_event      += predictor->profile_predictor_event();
+            m_workload_profile_predictor_taken      += predictor->profile_predictor_taken();
+            m_workload_profile_predictor_correct    += predictor->profile_predictor_correct();
+            m_workload_profile_predictor_mispredict += predictor->profile_predictor_mispredict();
+            m_workload_profile_predictor_recover    += predictor->profile_predictor_recover();
             m_workload_profile_redirect       += issue->profile_redirect();
             m_workload_profile_interrupt      += issue->profile_interrupt();
             m_workload_profile_issue_blocked += issue->profile_issue_blocked();
@@ -206,6 +276,11 @@ public:
         m_workload_profile_csr_issue = 0;
         m_workload_profile_branch = 0;
         m_workload_profile_branch_taken = 0;
+        m_workload_profile_predictor_event = 0;
+        m_workload_profile_predictor_taken = 0;
+        m_workload_profile_predictor_correct = 0;
+        m_workload_profile_predictor_mispredict = 0;
+        m_workload_profile_predictor_recover = 0;
         m_workload_profile_redirect = 0;
         m_workload_profile_interrupt = 0;
         m_workload_profile_issue_blocked = 0;
@@ -233,6 +308,11 @@ public:
         m_profile_csr_issue = 0;
         m_profile_branch = 0;
         m_profile_branch_taken = 0;
+        m_profile_predictor_event = 0;
+        m_profile_predictor_taken = 0;
+        m_profile_predictor_correct = 0;
+        m_profile_predictor_mispredict = 0;
+        m_profile_predictor_recover = 0;
         m_profile_redirect = 0;
         m_profile_interrupt = 0;
         m_profile_issue_blocked = 0;
@@ -240,10 +320,15 @@ public:
         m_workload_profile_start_seen = false;
         m_workload_profile_end_seen = false;
         m_workload_profile_start_step = 0;
+        m_predictor_debug = false;
+        m_predictor_debug_events = 0;
         reset_workload_profile();
         const char *irq_cycle = getenv("IRQ_CYCLE");
         if (irq_cycle && *irq_cycle)
             m_irq_cycle = strtol(irq_cycle, NULL, 0);
+        const char *predictor_debug = getenv("PREDICTOR_DEBUG");
+        if (predictor_debug && !strcmp(predictor_debug, "1"))
+            m_predictor_debug = true;
 
         m_dut = new riscv_tcm_top_rtl("DUT");
         m_dut->clk_in(clk);
@@ -358,6 +443,11 @@ public:
         m_profile_csr_issue = 0;
         m_profile_branch = 0;
         m_profile_branch_taken = 0;
+        m_profile_predictor_event = 0;
+        m_profile_predictor_taken = 0;
+        m_profile_predictor_correct = 0;
+        m_profile_predictor_mispredict = 0;
+        m_profile_predictor_recover = 0;
         m_profile_redirect = 0;
         m_profile_interrupt = 0;
         m_profile_issue_blocked = 0;
@@ -365,6 +455,7 @@ public:
         m_workload_profile_start_seen = false;
         m_workload_profile_end_seen = false;
         m_workload_profile_start_step = 0;
+        m_predictor_debug_events = 0;
         reset_workload_profile();
         intr_in.write(0);
         rst_cpu_in.write(true);

@@ -3,7 +3,8 @@ param(
     [string]$WslDistribution = 'Ubuntu-A',
     [string]$TestFilter = '',
     [int]$MaxCycles = 1000000,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [int]$EnableBranchPredictor = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -140,6 +141,7 @@ foreach ($line in Get-Content -LiteralPath $manifest) {
         '-batch',
         '-modelsimini', $modelsimIni,
         'work.tb_tcm_regression',
+        "-gENABLE_BRANCH_PREDICTOR=$EnableBranchPredictor",
         "+MEMH=$(($memh.Replace('\', '/')))",
         "+TESTNAME=$name",
         "+MAX_CYCLES=$MaxCycles",
