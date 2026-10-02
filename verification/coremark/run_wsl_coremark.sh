@@ -65,9 +65,22 @@ if [[ "$output" == *"ERROR! list crc"* || "$output" == *"ERROR! matrix crc"* ||
     echo "COREMARK_SMOKE_FAIL: CoreMark algorithm or port validation failed" >&2
     exit 1
 fi
+short_run_notice=false
+if [[ "$output" == *"Errors detected"* ]]; then
+    if [[ "$output" != *"Must execute for at least 10 secs for a valid result!"* ]]; then
+        echo "COREMARK_SMOKE_FAIL: CoreMark reported an unexpected error" >&2
+        exit 1
+    fi
+    short_run_notice=true
+fi
 if [[ "$output" != *"COREMARK_METRICS"* || "$output" != *"cpi_x1000"* ]]; then
     echo "COREMARK_SMOKE_FAIL: CoreMark architectural metrics marker missing" >&2
     exit 1
 fi
 
-echo "COREMARK_SMOKE_PASS ITERATIONS=$ITERATIONS TOTAL_DATA_SIZE=$TOTAL_DATA_SIZE RUN_TYPE=$RUN_TYPE"
+validity=reportable
+if [[ "$short_run_notice" == true ]]; then
+    echo "COREMARK_SMOKE_NOTICE VALIDITY=short-run MIN_SECONDS=10"
+    validity=short-run
+fi
+echo "COREMARK_SMOKE_PASS ITERATIONS=$ITERATIONS TOTAL_DATA_SIZE=$TOTAL_DATA_SIZE RUN_TYPE=$RUN_TYPE VALIDITY=$validity"

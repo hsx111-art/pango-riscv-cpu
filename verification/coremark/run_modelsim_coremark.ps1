@@ -112,9 +112,18 @@ if ($rc -ne 0 -or
     $output -match 'ERROR! list crc' -or
     $output -match 'ERROR! matrix crc' -or
     $output -match 'ERROR! state crc' -or
+    $output -match 'PORT_TYPE_ERROR' -or
     $output -notmatch 'COREMARK_METRICS' -or
     $output -notmatch 'cpi_x1000') {
     throw "CoreMark ModelSim smoke failed with exit code $rc"
 }
 
-Write-Host "COREMARK_MODELSIM_SMOKE_PASS ITERATIONS=$Iterations RUN_TYPE=$RunType"
+$shortRunNotice = $output -match 'Must execute for at least 10 secs for a valid result!'
+if (($output -match 'Errors detected') -and -not $shortRunNotice) {
+    throw 'CoreMark ModelSim smoke reported an unexpected error.'
+}
+if ($shortRunNotice) {
+    Write-Host 'COREMARK_MODELSIM_SMOKE_NOTICE VALIDITY=short-run MIN_SECONDS=10'
+}
+$validity = if ($shortRunNotice) { 'short-run' } else { 'reportable' }
+Write-Host "COREMARK_MODELSIM_SMOKE_PASS ITERATIONS=$Iterations RUN_TYPE=$RunType VALIDITY=$validity"
