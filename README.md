@@ -225,7 +225,10 @@ The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex
 - The AI microbenchmark interval and profile data are repeatable in both simulators, but the profile data is verification-only and does not by itself prove an optimization result.
 - Cache RTL passes Verilator lint but currently has ModelSim 2020.4 declaration compatibility errors.
 - Supervisor, MMU-enabled, Linux, timer-interrupt, and board-level configurations require separate directed tests.
-- The current baseline has no dynamic branch predictor and is not being performance-optimized in this repository-freeze milestone.
+- The formal baseline keeps `ENABLE_BRANCH_PREDICTOR=0`. An observational 16-entry
+  BTB/BHT prototype is available for branch statistics and passes both regressions,
+  but it has no validated pipeline squash/kill path and must not be treated as a
+  performance optimization.
 
 ## Roadmap
 
