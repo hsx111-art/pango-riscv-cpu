@@ -2,7 +2,8 @@
 
 module tb_tcm_basic #(
     parameter ENABLE_BRANCH_PREDICTOR = 0,
-    parameter ENABLE_BRANCH_PREDICTOR_REDIRECT = 0
+    parameter ENABLE_BRANCH_PREDICTOR_REDIRECT = 0,
+    parameter SUPPORT_MUL_E1_BYPASS = 1
 );
 
     reg         clk_i;
@@ -66,7 +67,8 @@ module tb_tcm_basic #(
         .MEM_CACHE_ADDR_MIN(32'h00000000),
         .MEM_CACHE_ADDR_MAX(32'hffffffff),
         .ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR),
-        .ENABLE_BRANCH_PREDICTOR_REDIRECT(ENABLE_BRANCH_PREDICTOR_REDIRECT)
+        .ENABLE_BRANCH_PREDICTOR_REDIRECT(ENABLE_BRANCH_PREDICTOR_REDIRECT),
+        .SUPPORT_MUL_E1_BYPASS(SUPPORT_MUL_E1_BYPASS)
     ) dut (
         .clk_i(clk_i),
         .rst_i(rst_i),

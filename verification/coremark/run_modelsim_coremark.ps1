@@ -7,7 +7,8 @@ param(
     [int]$ClockHz = 1000000,
     [int]$MaxCycles = 2000000,
     [int]$EnableBranchPredictor = 0,
-    [int]$EnableBranchPredictorRedirect = 0
+    [int]$EnableBranchPredictorRedirect = 0,
+    [int]$SupportMulE1Bypass = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -90,6 +91,7 @@ $simArgs = @(
     'work.tb_tcm_regression',
     "-gENABLE_BRANCH_PREDICTOR=$EnableBranchPredictor",
     "-gENABLE_BRANCH_PREDICTOR_REDIRECT=$EnableBranchPredictorRedirect",
+    "-gSUPPORT_MUL_E1_BYPASS=$SupportMulE1Bypass",
     "+MEMH=$(($memh.Replace('\', '/')))",
     '+TESTNAME=coremark',
     "+MAX_CYCLES=$MaxCycles",

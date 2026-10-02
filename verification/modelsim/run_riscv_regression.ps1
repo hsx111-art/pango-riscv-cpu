@@ -5,7 +5,8 @@ param(
     [int]$MaxCycles = 1000000,
     [switch]$SkipBuild,
     [int]$EnableBranchPredictor = 0,
-    [int]$EnableBranchPredictorRedirect = 0
+    [int]$EnableBranchPredictorRedirect = 0,
+    [int]$SupportMulE1Bypass = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -144,6 +145,7 @@ foreach ($line in Get-Content -LiteralPath $manifest) {
         'work.tb_tcm_regression',
         "-gENABLE_BRANCH_PREDICTOR=$EnableBranchPredictor",
         "-gENABLE_BRANCH_PREDICTOR_REDIRECT=$EnableBranchPredictorRedirect",
+        "-gSUPPORT_MUL_E1_BYPASS=$SupportMulE1Bypass",
         "+MEMH=$(($memh.Replace('\', '/')))",
         "+TESTNAME=$name",
         "+MAX_CYCLES=$MaxCycles",

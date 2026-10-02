@@ -10,6 +10,7 @@ VERILATOR_SRC="${VERILATOR_SRC:-/usr/share/verilator/include}"
 LIB_OPT="${LIB_OPT:-/usr/lib/x86_64-linux-gnu/libsystemc.so}"
 ENABLE_BRANCH_PREDICTOR="${ENABLE_BRANCH_PREDICTOR:-0}"
 ENABLE_BRANCH_PREDICTOR_REDIRECT="${ENABLE_BRANCH_PREDICTOR_REDIRECT:-0}"
+SUPPORT_MUL_E1_BYPASS="${SUPPORT_MUL_E1_BYPASS:-1}"
 VERILATE_PARAMS="${VERILATE_PARAMS:---trace}"
 if [[ "$ENABLE_BRANCH_PREDICTOR" == "1" ]]; then
     VERILATE_PARAMS="$VERILATE_PARAMS -GENABLE_BRANCH_PREDICTOR=1"
@@ -17,13 +18,16 @@ fi
 if [[ "$ENABLE_BRANCH_PREDICTOR_REDIRECT" == "1" ]]; then
     VERILATE_PARAMS="$VERILATE_PARAMS -GENABLE_BRANCH_PREDICTOR_REDIRECT=1"
 fi
+if [[ "$SUPPORT_MUL_E1_BYPASS" == "1" ]]; then
+    VERILATE_PARAMS="$VERILATE_PARAMS -GSUPPORT_MUL_E1_BYPASS=1"
+fi
 
 export PATH="${RISCV_TOOLCHAIN_BIN:-$HOME/.local/riscv-tools/usr/bin}:$PATH"
 
 make -C "$ROOT_DIR/verification/ai_microbench" clean
 make -C "$ROOT_DIR/verification/ai_microbench" \
     OUT="$OUT_DIR" AI_REPEAT="$AI_REPEAT" -j2
-echo "WSL_AI_CONFIG predictor=$ENABLE_BRANCH_PREDICTOR redirect=$ENABLE_BRANCH_PREDICTOR_REDIRECT"
+echo "WSL_AI_CONFIG predictor=$ENABLE_BRANCH_PREDICTOR redirect=$ENABLE_BRANCH_PREDICTOR_REDIRECT mul_e1_bypass=$SUPPORT_MUL_E1_BYPASS"
 
 pushd "$ROOT_DIR/top_tcm_axi/tb" >/dev/null
 env -u NAME -u SRC make -f makefile.generate_verilated CORE=riscv NAME=riscv_tcm_top SRC=riscv_tcm_top clean
