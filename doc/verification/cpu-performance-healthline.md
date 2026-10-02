@@ -174,6 +174,37 @@ The full regression exposes long divider hold and pipeline-block intervals on
 `rv32um/div*` and `rv32um/rem*`. This is a valid future target only if a change
 also preserves the current general-purpose and AI workload results.
 
+## Post-acceptance profile evidence
+
+The accepted TCM configuration was re-run on 2026-10-02 after the three-part
+MUL E1 bypass commit series. The architectural workload intervals remained:
+
+```text
+CoreMark smoke: cycles=375330 retired=315440 cpi_x1000=1189
+dot_i8:         cycles=12368  retired=11322  cpi_x1000=1092 checksum=4656
+gemm_i8:        cycles=125841 retired=117564 cpi_x1000=1070 checksum=49
+conv_i8:        cycles=159922 retired=150621 cpi_x1000=1061 checksum=-3
+relu_i8:        cycles=18000  retired=16891  cpi_x1000=1065 checksum=158
+```
+
+The workload-bounded ModelSim profiles show `issue_scoreboard_block=0`,
+`issue_pipe_block=0`, `issue_div_block=0`, and zero fetch wait or fetch memory
+block for all four AI kernels. This confirms that the accepted bypass removed
+the measured MUL dependency component without turning the issue scoreboard
+into a global bypass.
+
+The CoreMark smoke harness is not workload-bounded by the AI markers, so its
+full-harness profile is diagnostic only. The current run reported:
+
+```text
+cycles=409982 retire=339638 issue_scoreboard_block=21181
+issue_pipe_block=3201 issue_div_block=97 issue_csr_block=3334
+fetch_backpressure=27813 fetch_redirect=42530
+```
+
+These counts identify remaining candidate classes, not directly attributable
+cycle savings. The next experiment should isolate the CoreMark interval and
+separate load/dependency stalls from redirect recovery before changing issue
 ## Not measured or not ready to claim
 
 The following are intentionally open:
