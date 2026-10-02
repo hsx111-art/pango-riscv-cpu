@@ -54,6 +54,7 @@ module riscv_tcm_top
     ,parameter MEM_CACHE_ADDR_MAX = 32'hffffffff
     ,parameter ENABLE_BRANCH_PREDICTOR = 0
     ,parameter ENABLE_BRANCH_PREDICTOR_REDIRECT = 0
+    ,parameter SUPPORT_MUL_E1_BYPASS = 1
 )
 //-----------------------------------------------------------------
 // Ports
@@ -172,6 +173,7 @@ riscv_core
     ,.MEM_CACHE_ADDR_MAX(MEM_CACHE_ADDR_MAX)
     ,.ENABLE_BRANCH_PREDICTOR(ENABLE_BRANCH_PREDICTOR)
     ,.ENABLE_BRANCH_PREDICTOR_REDIRECT(ENABLE_BRANCH_PREDICTOR_REDIRECT)
+    ,.SUPPORT_MUL_E1_BYPASS(SUPPORT_MUL_E1_BYPASS)
 )
 u_core
 (

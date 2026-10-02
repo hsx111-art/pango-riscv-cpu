@@ -57,6 +57,7 @@ module riscv_multiplier
 
     // Outputs
     ,output [ 31:0]  writeback_value_o
+    ,output [ 31:0]  writeback_e1_value_o
 );
 
 
@@ -156,6 +157,7 @@ else if (~hold_i)
     result_e3_q <= result_e2_q;
 
 assign writeback_value_o  = (MULT_STAGES == 3) ? result_e3_q : result_e2_q;
+assign writeback_e1_value_o = result_r;
 
 
 endmodule

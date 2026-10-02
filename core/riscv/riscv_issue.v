@@ -48,6 +48,7 @@ module riscv_issue
     ,parameter SUPPORT_DUAL_ISSUE = 1
     ,parameter SUPPORT_LOAD_BYPASS = 1
     ,parameter SUPPORT_MUL_BYPASS = 1
+    ,parameter SUPPORT_MUL_E1_BYPASS = 0
     ,parameter SUPPORT_REGFILE_XILINX = 0
 )
 //-----------------------------------------------------------------
@@ -89,6 +90,7 @@ module riscv_issue
     ,input  [ 31:0]  writeback_mem_value_i
     ,input  [  5:0]  writeback_mem_exception_i
     ,input  [ 31:0]  writeback_mul_value_i
+    ,input  [ 31:0]  writeback_mul_e1_value_i
     ,input           writeback_div_valid_i
     ,input  [ 31:0]  writeback_div_value_i
     ,input  [ 31:0]  csr_result_e1_value_i
@@ -398,7 +400,7 @@ begin
     end
 
     // Execution units with >= 1 cycle latency (loads / multiply)
-    if (pipe_load_e1_w || pipe_mul_e1_w)
+    if (pipe_load_e1_w || (pipe_mul_e1_w && (SUPPORT_MUL_E1_BYPASS == 0)))
         scoreboard_r[pipe_rd_e1_w] = 1'b1;
 
     // Do not start multiply, division or CSR operation in the cycle after a load (leaving only ALU operations and branches)
@@ -519,9 +521,9 @@ begin
 
     // Bypass - E1
     if (pipe_rd_e1_w == issue_ra_idx_w)
-        issue_ra_value_r = writeback_exec_value_i;
+        issue_ra_value_r = pipe_mul_e1_w ? writeback_mul_e1_value_i : writeback_exec_value_i;
     if (pipe_rd_e1_w == issue_rb_idx_w)
-        issue_rb_value_r = writeback_exec_value_i;
+        issue_rb_value_r = pipe_mul_e1_w ? writeback_mul_e1_value_i : writeback_exec_value_i;
 
     // Reg 0 source
     if (issue_ra_idx_w == 5'b0)
