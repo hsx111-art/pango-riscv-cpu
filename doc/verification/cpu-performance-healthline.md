@@ -22,6 +22,7 @@ MMU                         Disabled
 TCM                         64 KiB, boot address 0x00002000
 ENABLE_BRANCH_PREDICTOR    0
 ENABLE_BRANCH_PREDICTOR_REDIRECT 0
+SUPPORT_MUL_E1_BYPASS      1 (TCM competition configuration)
 Compiler                    riscv64-unknown-elf-gcc 13.2.0
 ABI                         ilp32
 Optimization                -O2
@@ -119,6 +120,13 @@ The WSL and ModelSim runners both report `AI_PASS` for all four workloads.
 The architectural intervals and checksums agree; only the harness marker
 boundary can differ by one diagnostic sample.
 
+The current formal TCM configuration includes the accepted MUL E1 dependency
+bypass. It changes `dot_i8` from 13,392 to 12,368 cycles and `conv_i8` from
+169,138 to 159,922 cycles, while `gemm_i8` and `relu_i8` remain unchanged.
+The corresponding scoreboard blocks fall from 1,024 to 0 and from 9,216 to 0.
+The generic core parameter remains disabled by default; the TCM wrappers and
+both runner families select the competition configuration.
+
 Representative frontend and issue-blocking observations are:
 
 | Workload | Fetch wait | Fetch memory block | Fetch backpressure | Fetch redirect | LSU block | Pipe block | Div block | CSR block | Scoreboard block |
@@ -146,10 +154,12 @@ These observations support the following current hypotheses:
 
 ### P0: dependency/interlock cost in selected integer kernels
 
-The strongest cross-workload signal is scoreboard blocking in `dot_i8` and
-`conv_i8`, with zero scoreboard blocking in `gemm_i8` and `relu_i8`. This is a
-candidate for a narrowly scoped forwarding or interlock experiment, not yet a
-justification for weakening the scoreboard globally.
+The strongest cross-workload signal was scoreboard blocking in `dot_i8` and
+`conv_i8`, with zero scoreboard blocking in `gemm_i8` and `relu_i8`. The
+narrowly scoped MUL E1 forwarding experiment removed those multiply dependency
+blocks and is now accepted for the TCM competition configuration. Remaining
+interlock work must be measured separately; the scoreboard was not weakened
+globally.
 
 ### P1: control-flow and redirect overhead
 
@@ -171,6 +181,7 @@ The following are intentionally open:
 ```text
 Cache miss/refill/writeback performance       Not measured
 Cache ModelSim compatibility                   Known historical issue
+MUL E1 bypass PDS timing/resource impact       Not measured
 FPGA Fmax/LUT/FF/DSP/BRAM/WNS/TNS              Not measured
 Formal CoreMark score or CoreMark/MHz          Not measured
 DDR/streaming/YOLO system performance          Not measured
@@ -193,6 +204,7 @@ A proposed optimization is accepted only when it:
 5. Leaves the predictor-off configuration unchanged unless a controlled
    predictor comparison becomes an actual cross-workload win.
 
-This healthline is sufficient to begin one narrowly scoped optimization
-experiment. It is not evidence that the CPU is already optimized, nor is it a
-formal FPGA competition score.
+The MUL E1 bypass satisfies this gate and is recorded in
+[`mul-e1-bypass-experiment.md`](mul-e1-bypass-experiment.md). This healthline
+is still not a formal FPGA competition score: PDS timing, resource, and
+CoreMark/MHz evidence remain open.

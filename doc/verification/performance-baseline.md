@@ -25,6 +25,11 @@ read-only aliases. The CoreMark smoke run is short enough that 32-bit wrap is
 not a factor. Longer FPGA runs must either bracket the interval below one
 32-bit wrap or extend the measurement code to combine the high halves.
 
+The active TCM competition configuration also enables the measured
+`SUPPORT_MUL_E1_BYPASS=1` dependency-forwarding path. The generic core default
+remains disabled; see [`mul-e1-bypass-experiment.md`](mul-e1-bypass-experiment.md)
+for the controlled comparison and acceptance evidence.
+
 ## Profiling contract
 
 The verification harnesses also report diagnostic event counts for issue,
@@ -93,12 +98,15 @@ bounded by the CoreMark port's `mcycle` and `minstret` reads:
 | --- | ---: | ---: | ---: |
 | Before redirect experiment | 423,772 | 315,440 | 1,343 |
 | Direct redirect baseline, predictor off | 384,726 | 315,440 | 1,219 |
+| Direct redirect + MUL E1 bypass, predictor off | 375,330 | 315,440 | 1,189 |
 | Predictor redirect enabled | 410,143 | 315,440 | 1,300 |
 
 The direct redirect revision reduced the one-iteration smoke interval by 9.21%.
-The predictor redirect experiment then increased it by 6.59% relative to the
-direct-redirect baseline. Retired count and correctness values are unchanged.
-This is a controlled smoke comparison, not a reportable CoreMark score.
+The MUL E1 bypass reduces the active direct-redirect interval by a further
+2.44% with unchanged retired count and correctness values. The predictor
+redirect experiment then increased the interval by 6.59% relative to the
+direct-redirect baseline. These are controlled smoke comparisons, not a
+reportable CoreMark score.
 
 Both environments produced the following CoreMark correctness values:
 

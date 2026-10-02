@@ -136,9 +136,8 @@ one harness-boundary sample for the diagnostic counters.
 The workload samples show no TCM fetch wait or memory-request block and no
 LSU, pipeline, or divider block in these four kernels. `dot_i8` and `conv_i8`
 have substantial scoreboard/dependency blocking, while `gemm_i8` and `relu_i8`
-do not. This is a profiling hypothesis, not proof that every scoreboard event
-maps one-for-one to an avoidable cycle; overlap and the shallow pipeline must
-be checked before changing the interlock logic.
+do not. The accepted MUL E1 bypass experiment below removes only the multiply
+dependency component; it does not weaken load or divide interlocks.
 
 The profile signals are diagnostic counters, not architectural CSRs. They are
 sampled at the harness clock boundary and are intended to identify hypotheses
@@ -148,10 +147,34 @@ checksums and architectural intervals remained correct in both environments
 and the full 71-entry regression passed. Any later optimization decision must use the same
 workload boundaries and repeat that regression.
 
+## MUL E1 bypass acceptance
+
+The current TCM competition configuration enables `SUPPORT_MUL_E1_BYPASS=1`.
+The generic core default remains `0`; only the TCM wrappers and verification
+runners set the competition default to `1`. The controlled comparison was run in
+both WSL/SystemC/Verilator and Windows/ModelSim 2020.4.
+
+| Workload | Bypass off | Bypass on | Delta | Scoreboard blocks off/on |
+| --- | ---: | ---: | ---: | ---: |
+| `dot_i8` | 13,392 | 12,368 | -7.646% | 1,024 / 0 |
+| `gemm_i8` | 125,841 | 125,841 | 0.000% | 0 / 0 |
+| `conv_i8` | 169,138 | 159,922 | -5.449% | 9,216 / 0 |
+| `relu_i8` | 18,000 | 18,000 | 0.000% | 0 / 0 |
+
+All four checksums and retired counts remain unchanged. CoreMark validation
+smoke changed from 384,726 to 375,330 cycles with 315,440 retired
+instructions; the short-run notice remains expected and no formal score is
+claimed. Full regression remains `TOTAL=71 PASS=65 FAIL=0 UNSUPPORTED=2
+NOT_TESTED=4` in both environments. See
+[`mul-e1-bypass-experiment.md`](mul-e1-bypass-experiment.md) for the RTL
+mechanism, exact commands, and timing-risk boundary.
+
 ## Reproduction
 
 Run `verification/ai_microbench/run_wsl_ai_microbench.sh` in WSL or run
 `verification/ai_microbench/run_modelsim_ai_microbench.ps1` in PowerShell.
+Both runners default to `SUPPORT_MUL_E1_BYPASS=1`; set the WSL environment
+variable or PowerShell parameter to `0` for the controlled off comparison.
 
 Expected terminal markers are WSL_AI_REGRESSION_PASS AI_REPEAT=16 and
 MODELSIM_AI_REGRESSION_PASS AI_REPEAT=16.
