@@ -92,11 +92,13 @@ bounded by the CoreMark port's `mcycle` and `minstret` reads:
 | Revision | Cycles | Retired | CPI x1000 |
 | --- | ---: | ---: | ---: |
 | Before redirect experiment | 423,772 | 315,440 | 1,343 |
-| After redirect experiment | 384,726 | 315,440 | 1,219 |
+| Direct redirect baseline, predictor off | 384,726 | 315,440 | 1,219 |
+| Predictor redirect enabled | 410,143 | 315,440 | 1,300 |
 
-The after revision reduced the one-iteration smoke interval by 9.21%. The
-retired count and correctness values are unchanged. This is a controlled
-smoke comparison, not a reportable CoreMark score.
+The direct redirect revision reduced the one-iteration smoke interval by 9.21%.
+The predictor redirect experiment then increased it by 6.59% relative to the
+direct-redirect baseline. Retired count and correctness values are unchanged.
+This is a controlled smoke comparison, not a reportable CoreMark score.
 
 Both environments produced the following CoreMark correctness values:
 

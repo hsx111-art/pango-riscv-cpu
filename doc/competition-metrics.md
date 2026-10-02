@@ -8,13 +8,13 @@
 
 | 项目 | 当前记录 |
 | --- | --- |
-| Git revision | `2c8b46b`，分支 `perf/microarchitecture-profiling` |
+| Git base revision | `6e3c844`，分支 `perf/microarchitecture-profiling`；本轮提交以 Git log 为准 |
 | CPU | RV32IM，Machine mode，MMU off |
 | 主要验证 top | `top_tcm_axi/src_v/riscv_tcm_top.v` |
 | TCM | 64 KiB，CPU 与 AXI 装载/访问路径 |
-| WSL/SystemC/Verilator | 现有 64 个 runnable matrix 项目通过 |
-| Windows/ModelSim | 现有 64 个 runnable matrix 项目通过 |
-| Dynamic predictor | Observational prototype validated in both regressions; default baseline remains disabled |
+| WSL/SystemC/Verilator | 71 total；65 runnable PASS，2 unsupported，4 not yet tested，0 failed |
+| Windows/ModelSim | 71 total；65 runnable PASS，2 unsupported，4 not yet tested，0 failed |
+| Dynamic predictor | 16-entry BTB/BHT with optional recovery validated；default baseline remains disabled |
 | FPGA PDS flow | Not available yet |
 
 ## 功能指标
@@ -27,7 +27,7 @@
 | Supervisor/MMU/PMP | Unsupported for default baseline | `SUPPORT_SUPER=0`、`SUPPORT_MMU=0`；没有默认配置证据 |
 | C/F/D/A extensions | Not implemented/validated | 当前项目不声明这些扩展 |
 | I/D cache | Implemented in cache top | `top_cache_axi` has 2-way cache; ModelSim compatibility still open |
-| Dynamic branch prediction | Observational prototype validated; redirect unsupported | 16-entry BTB/BHT statistics pass both regressions; no squash/kill path, so no predictor performance claim |
+| Dynamic branch prediction | Optional 16-entry BTB/BHT with recovery path | `directed/predictor_recovery` and full matrix pass both environments；predictor-on benchmark is slower |
 | UART/GPIO | Not available in current CPU top | No competition board peripheral integration in this checkout |
 | Timer source | Baseline source is tied low | `core/riscv/riscv_csr.v` sets `timer_irq_w = 1'b0` |
 
@@ -43,14 +43,15 @@ CPI     = cycles / retired
 
 | workload | 当前 smoke 结果 | 说明 |
 | --- | --- | --- |
-| CoreMark validation, 1 iteration | 384,726 cycles; 315,440 retired; CPI 1.219 | 正确性/测量通路 smoke，不满足正式十秒计分条件 |
+| CoreMark validation, 1 iteration, predictor off | 384,726 cycles; 315,440 retired; CPI 1.219 | 正确性/测量通路 smoke，不满足正式十秒计分条件 |
+| CoreMark validation, 1 iteration, predictor on | 410,143 cycles; 315,440 retired; CPI 1.300 | 功能 PASS，但比正式 baseline 慢 6.59% |
 | `dot_i8` | 13,392 cycles at `AI_REPEAT=16` | checksum 4656 |
 | `gemm_i8` | 125,841 cycles at `AI_REPEAT=16` | checksum 49 |
 | `conv_i8` | 169,138 cycles at `AI_REPEAT=16` | checksum -3 |
 | `relu_i8` | 18,000 cycles at `AI_REPEAT=16` | checksum 158 |
 | CoreMark/MHz | Not available yet | 缺少真实 FPGA 时钟与正式运行时长 |
 | IPC | Not reported | 当前为单主 issue；CPI 足够支撑 baseline 比较 |
-| branch accuracy | Diagnostic per-test metric available | predictor-on reports event/correct/mispredict counts; aggregate accuracy and performance benefit are not frozen claims |
+| branch accuracy | Diagnostic per-test metric available | predictor-on reports event/correct/mispredict/recovery counts；准确率不等于性能收益 |
 | stall breakdown | Diagnostic only | SystemC/ModelSim profile signal，不替代架构计数器 |
 
 ## FPGA 实现指标
@@ -89,4 +90,4 @@ CPI     = cycles / retired
 1. 每个 before/after 结果必须记录 commit、工具版本、参数、image hash 和输出 marker。
 2. correctness 必须同时通过 WSL/SystemC/Verilator 与 Windows/ModelSim；单环境结果不进入稳定表。
 3. 仿真 cycle 只能用于同一 RTL/configuration 下的相对比较，不能冒充 FPGA Fmax 或 CoreMark/MHz。
-4. predictor、cache、流水线等改动必须同时记录性能变化与 LUT/FF/Fmax 变化；实现数据缺失时保留 `Not measured`。当前 predictor 只完成统计型验证，redirect/squash 仍为 `Unsupported`。
+4. predictor、cache、流水线等改动必须同时记录性能变化与 LUT/FF/Fmax 变化；实现数据缺失时保留 `Not measured`。当前 predictor recovery 已完成 TCM 双环境功能验证，但 predictor-on 在 CoreMark/AI smoke 上为负收益，不能宣称优化成功。

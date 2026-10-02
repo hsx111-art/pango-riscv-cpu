@@ -3,11 +3,11 @@
 Date: 2026-10-02
 Scope: `riscv_core` + `top_tcm_axi` TCM, RV32IM, Machine mode, MMU off
 
-This record defines the repeatable integer AI-oriented workload and the first
-controlled microarchitecture comparison for the competition branch. The
-profiling hooks are verification-only. The redirect experiment changes only
-fetch control timing; it does not add a predictor, change the issue pipeline,
-or change the ISA.
+This record defines the repeatable integer AI-oriented workload and the
+controlled microarchitecture comparisons for the competition branch. The
+profiling hooks are verification-only. The direct redirect experiment changes
+fetch control timing; the later predictor experiment adds an optional BTB/BHT
+lookup and recovery path without changing the ISA.
 
 ## Workloads
 
@@ -76,6 +76,24 @@ the numbers to use for comparing later CPU implementations. The full harness
 counters include startup, output, and simulation-exit activity and must not
 replace the bracketed workload interval.
 
+## Predictor recovery comparison
+
+The same images, compiler flags, repeat count, and counter brackets were run
+with `ENABLE_BRANCH_PREDICTOR=1` and
+`ENABLE_BRANCH_PREDICTOR_REDIRECT=1`. All four workloads passed their checksum
+checks in WSL/SystemC/Verilator and Windows/ModelSim.
+
+| Workload | Predictor off cycles | Predictor on cycles | Delta | Off CPI x1000 | On CPI x1000 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `dot_i8` | 13,392 | 13,459 | +0.50% | 1,182 | 1,188 |
+| `gemm_i8` | 125,841 | 130,521 | +3.72% | 1,070 | 1,110 |
+| `conv_i8` | 169,138 | 186,106 | +10.03% | 1,122 | 1,235 |
+| `relu_i8` | 18,000 | 18,071 | +0.39% | 1,065 | 1,069 |
+
+The predictor recovery path is therefore functionally correct for the current
+single-branch tracking scope, but it is not a measured performance win. The
+formal performance baseline remains predictor-off.
+
 ## Verification-only profile events
 
 The `verilator public` functions added to `core/riscv/riscv_issue.v` expose
@@ -103,9 +121,9 @@ for the bracketed architectural counters above.
 The profile signals are diagnostic counters, not architectural CSRs. They are
 sampled at the harness clock boundary and are intended to identify hypotheses
 for later work such as branch redirection cost, divider hold time, or issue
-blocking. The redirect experiment was accepted only because the checksums and
-architectural intervals remained correct in both environments and the full
-70-entry regression passed. Any later optimization decision must use the same
+blocking. The redirect and predictor experiments were accepted only because the
+checksums and architectural intervals remained correct in both environments
+and the full 71-entry regression passed. Any later optimization decision must use the same
 workload boundaries and repeat that regression.
 
 ## Reproduction
@@ -131,6 +149,6 @@ each workload interval excludes that activity.
 This baseline is ready for hypothesis generation and regression comparison,
 not for claiming an optimization win by itself. A later change must preserve
 the four checksums, rerun both environments, compare the bracketed workload
-intervals, and pass the full 70-entry matrix before any branch, pipeline, LSU,
+intervals, and pass the full 71-entry matrix before any branch, pipeline, LSU,
 or memory-system conclusion is accepted. Formal CoreMark scoring remains a
 separate FPGA or appropriately timed target measurement.

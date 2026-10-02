@@ -20,11 +20,11 @@ not called validated merely because a decoder, CSR, or parameter exists.
 
 ## Regression totals
 
-The manifest contains 70 entries:
+The manifest contains 71 entries:
 
 | Category | Count | WSL/SystemC/Verilator | Windows/ModelSim |
 | --- | ---: | --- | --- |
-| Runnable entries | 64 | 64 pass | 64 pass |
+| Runnable entries | 65 | 65 pass | 65 pass |
 | Unsupported entries | 2 | reported, not run | reported, not run |
 | Not-yet-tested entries | 4 | reported, not run | reported, not run |
 | Failed entries | 0 | 0 | 0 |
@@ -146,5 +146,7 @@ The repository is suitable as a frozen RV32IM Machine-mode TCM development
 starting point. It is not yet a complete RISC-V compliance result and it has
 no reportable CoreMark score yet. The pinned CoreMark source, RV32IM TCM port,
 CRC smoke run, and bracketed cycle/retirement metrics are now reproducible in
-both environments. No branch predictor, pipeline, cache, multiplier, or
-divider optimization is included in this baseline.
+both environments. The optional predictor recovery path is functionally
+validated by the directed test and full matrix, but remains disabled in the
+formal baseline because the predictor-on CoreMark and AI comparisons are
+slower.

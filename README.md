@@ -1,245 +1,280 @@
-# Pango RISC-V CPU Competition Project
+# 紫光同创 RISC-V CPU 竞赛工程
 
-A long-lived FPGA and CPU design workspace for the **2026 National Undergraduate Embedded Chip and System Design Competition**, **FPGA Innovation Design Track**, **Purple Mountain FPGA / 紫光同创赛题一：基于紫光同创 RISC-V 指令集 CPU 设计**.
+本仓库面向 **2026 全国大学生嵌入式芯片与系统设计竞赛 FPGA 创新设计赛道赛题一：基于紫光同创 RISC-V 指令集 CPU 设计**。工程以 `ultraembedded/riscv` 为上游，保留原始 Git 历史、commit SHA、tag 和 upstream lineage，在可重复验证基础上开展 CPU、存储系统、FPGA 落地和 AI inference adaptation 工作。
 
-This repository starts from a verified, upstream-derived RISC-V CPU baseline. The immediate engineering rule is simple: a version enters the verified table only after its exact source revision and reproducible commands pass on both supported simulation paths.
+> 仓库当前按 Private 工程管理。公开前必须重新检查上游许可证、第三方 benchmark、PDS 生成内容、器件 IP 和板卡资料的再分发条款。
 
-> **Repository status:** this project is intended to remain **Private**. It contains third-party open-source RTL, competition materials, and future PDS/IP integration work. Before any future publication, review upstream licenses, PDS-generated content, board collateral, and every third-party dependency for redistribution permissions.
+## 项目简介
 
-## Project goals
+当前稳定开发起点是 RV32IM、Machine mode、MMU 关闭的 TCM 配置。工程已经建立两条一致的 RTL 验证链路：
 
-The project will evolve the current CPU baseline through measured, reviewable stages:
+- WSL + SystemC + Verilator + C++ ISA simulator；
+- Windows + ModelSim SE-64 2020.4 + 纯 HDL TCM testbench。
 
-- preserve a working functional baseline while adding directed and compliance-oriented tests;
-- evaluate timing, area, CPI, memory-system behavior, and FPGA implementation constraints;
-- add competition-specific functionality only after regression evidence exists;
-- keep every stable milestone reproducible on Windows and WSL;
-- record future PDS synthesis, timing-closure, and board bring-up evidence without committing generated tool trees.
+所有功能或性能结论必须绑定明确的源码 revision、配置、工具版本、命令、PASS marker 和测量区间。仅有 RTL 代码、decode 参数或仿真编译成功，不等于功能已经 validated。
 
-No branch-prediction, pipeline, cache, ISA, or performance redesign is part of the initial repository-freeze milestone.
+## 赛题目标
 
-## Upstream and attribution
+- 保持 RV32IM 功能回归稳定，逐步补齐赛题要求的 CPU 功能与系统集成；
+- 用 `mcycle`、`minstret`、CPI 和固定 workload 建立可比较的性能证据；
+- 后续以 PDS 实测获得 Fmax、LUT/FF、BRAM/DSP、CoreMark/MHz 和 CoreMark/LUT；
+- 评估动态分支预测、Cache、流水线、定制指令和 INT8 加速，但只接受经双环境回归和 before/after 数据支持的方案；
+- 最终完成 UART、GPIO、timer、interrupt、存储和板级启动闭环。
 
-- **Source repository:** <https://github.com/ultraembedded/riscv>
-- **Upstream baseline commit:** `7ae6f803e30f78c6ea3121e73c3adf50ff912730`
-- **Upstream release marker:** `v1.0.1`
-- **Original author/organization:** ultraembedded
-- **License:** retain and follow the upstream `LICENSE` file in this repository.
+## 当前 CPU 架构
 
-The original commit history is preserved. Local commits add verification infrastructure, documentation, and tool-version compatibility fixes; they do not erase the upstream lineage.
+- 32-bit、in-order、single-issue 取向的 Verilog CPU；
+- `riscv_fetch`、`riscv_decode`、`riscv_issue`/scoreboard、`riscv_exec`、`riscv_lsu`、`riscv_csr`、`riscv_pipe_ctrl` 等模块协同工作；
+- `SUPPORT_MULDIV=1` 时启用硬件乘除法；
+- 稳定 baseline 使用 `top_tcm_axi` 和 64 KiB 双口 TCM；
+- TCM 内程序入口为 `0x00002000`，CPU reset 与装载接口 reset 分离；
+- `top_cache_axi` 提供独立 I/D cache 的另一套上游 wrapper，但尚未进入正式 functional regression。
 
-## Current CPU baseline
+详细架构审计见 [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md)。
 
-The current competition starting point is the upstream-derived `core/riscv` RV32 core with the `top_tcm_axi` wrapper:
+## 指令集支持
 
-- 32-bit in-order-oriented Verilog core;
-- fetch, decode, issue/scoreboard, execute, LSU, CSR, exception/interrupt, and optional MMU blocks;
-- hardware integer multiply/divide path when `SUPPORT_MULDIV=1`;
-- 64 KiB dual-port TCM with separate CPU reset and AXI loading/access ports;
-- AXI4-Lite peripheral access path;
-- no dynamic BTB/BHT/RAS branch predictor in the current baseline;
-- no CPU-core RTL changes were made while establishing this repository baseline.
+默认配置的保守声明为：
 
-### ISA claims for the default baseline
+- RV32I：40 个现有 directed/standard test 通过，但不是完整 compliance 声明；
+- RV32M：`MUL*`、`DIV*`、`REM*` 共 8 项通过；
+- Zicsr / Machine CSR：已覆盖当前 matrix 中的读写、trap 和 counter 子集；
+- Zifencei：已有可执行测试；
+- Machine mode：当前正式 baseline；
+- Supervisor、MMU/SV32、PMP：未纳入默认 baseline；
+- A、C、F、D：当前不声明实现或验证。
 
-The verified default configuration is conservative:
+完整分类见 [`doc/verification/isa-validation-matrix.md`](doc/verification/isa-validation-matrix.md)。
 
-- RV32I integer base instructions exercised by the supplied program;
-- M extension hardware path (`MUL`, `MULH*`, `DIV*`, `REM*`);
-- CSR/System instruction path used by the core and simulation exit mechanism;
-- Machine mode;
-- `SUPPORT_MMU=0`;
-- compressed C, atomic A, and floating-point F/D extensions are **not claimed as verified hardware support**;
-- supervisor/MMU/Linux configurations remain separate, unverified targets for later work.
+## 流水线与控制流
 
-The upstream README contains historical statements about RISCV-DV, Linux, CoreMark, and Dhrystone. Those statements are retained as upstream context, not treated as evidence for this checkout unless a reproducible test record is added here.
+该核心不是按文件名机械划分的教科书五级流水。fetch/decode/issue、E1/E2/WB、LSU、CSR 和 scoreboard 之间存在独立 hold、bypass、squash 与 redirect 控制。当前已验证的直接 branch redirect 相比早期版本降低了 taken redirect 延迟，并形成 `v0.2.0-perf-baseline` 的性能基准。
 
-## Verified versions
+任何后续控制流修改必须检查：
 
-| Tag | Date | CPU/configuration | Verification environments | Status |
-| --- | --- | --- | --- | --- |
-| `v0.1.0-tcm-baseline` | 2026-09-30 | RV32IM + CSR/System, Machine mode, MMU off, `top_tcm_axi` TCM | WSL SystemC/Verilator/ISA simulator; Windows ModelSim SE-64 2020.4 HDL regression | Verified: `basic.elf` passed on both paths |
+- wrong-path 指令不能写寄存器、发 store、改 CSR 或提交 trap；
+- outstanding instruction response 必须正确丢弃；
+- scoreboard 和依赖状态不能残留；
+- exception、interrupt、JAL/JALR、MRET、FENCE/FENCE.I 与 WFI 语义不能回归。
 
-The tag is only valid for the exact commit named by the annotated tag. Cache, compliance, benchmark, supervisor, MMU, and board-level claims are outside this first verified scope.
+## 动态分支预测
 
-## Reproduce the baseline
+当前实验分支包含可关闭的 16-entry direct-mapped BTB 和 16-entry 2-bit BHT，并增加了适配现有 single-issue 核心的最小 recovery：
 
-### Baseline A: WSL and the original SystemC/Verilator path
+- 条件分支在 fetch 侧预测 taken/not-taken；
+- execute 提供实际 outcome 和正确下一条 PC；
+- mismatch 时 fetch 丢弃错误路径 response，issue 阻止同周期错误路径指令进入执行；
+- `directed/predictor_recovery` 覆盖两种 mismatch 方向，以及 wrong-path store、CSR write、illegal instruction 抑制；
+- 默认仍为 `ENABLE_BRANCH_PREDICTOR=0`、`ENABLE_BRANCH_PREDICTOR_REDIRECT=0`。
 
-Environment used for the first verified version:
+predictor-on 已通过 WSL 和 ModelSim 的完整 correctness gate，但当前性能为负收益：
 
-- WSL distribution: `Ubuntu-A`
-- Ubuntu: `24.04.1 LTS`
-- Verilator: `5.020`
-- SystemC: `2.3.4`
-- packages: `libelf-dev`, `binutils-dev`, `libsystemc-dev`
+| Workload | Predictor off | Predictor on | 变化 |
+| --- | ---: | ---: | ---: |
+| CoreMark validation smoke cycles | 384,726 | 410,143 | +6.59% |
+| `dot_i8` cycles | 13,392 | 13,459 | +0.50% |
+| `gemm_i8` cycles | 125,841 | 130,521 | +3.72% |
+| `conv_i8` cycles | 169,138 | 186,106 | +10.03% |
+| `relu_i8` cycles | 18,000 | 18,071 | +0.39% |
 
-From PowerShell at the repository root:
+因此 predictor recovery 当前是“功能正确的实验能力”，不是已接受的性能优化。正式 baseline 继续关闭 predictor。实验记录见 [`doc/verification/branch-predictor-experiment.md`](doc/verification/branch-predictor-experiment.md)。
+
+## Cache 与存储系统
+
+`top_cache_axi` 复用同一 `riscv_core`，包含：
+
+- 16 KiB、2-way ICache；
+- 16 KiB、2-way write-back/read-write-allocate DCache；
+- 32-byte cache line；
+- AXI burst refill，DCache 支持 writeback burst。
+
+当前状态：
+
+- Verilator 5.020 cache top compile audit 通过；
+- ModelSim 2020.4 在 `dcache_core.v` 和 `icache.v` 上复现 14 个先使用后声明/重复声明兼容错误；
+- cache functional smoke、hit rate、miss penalty、PDS 资源和时序尚未建立；
+- Cache 问题独立于 TCM predictor correctness gate，不阻塞当前稳定 baseline。
+
+详见 [`doc/verification/cache-competition-audit.md`](doc/verification/cache-competition-audit.md)。
+
+## 验证环境
+
+当前 `verification/riscv_tests/manifest.tsv` 共 71 项：
+
+| 分类 | 数量 | WSL/SystemC/Verilator | Windows/ModelSim |
+| --- | ---: | --- | --- |
+| Runnable | 65 | 65 PASS | 65 PASS |
+| Unsupported | 2 | 报告但不运行 | 报告但不运行 |
+| Not yet tested | 4 | 报告但不运行 | 报告但不运行 |
+| Failed | 0 | 0 | 0 |
+
+已覆盖 RV32I/RV32M 子集、CSR、ECALL、EBREAK、MRET、WFI、FENCE、FENCE.I、illegal instruction、misaligned load/store/fetch、machine external interrupt、internal timer compare、`mcycle` 和 `minstret`。
+
+### WSL 完整回归
+
+```powershell
+wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv; TEST_TIMEOUT_SEC=10 bash verification/riscv_tests/run_wsl_regression.sh"
+```
+
+predictor-on 对照：
+
+```powershell
+wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv; ENABLE_BRANCH_PREDICTOR=1 ENABLE_BRANCH_PREDICTOR_REDIRECT=1 TEST_TIMEOUT_SEC=10 bash verification/riscv_tests/run_wsl_regression.sh"
+```
+
+### Windows ModelSim 完整回归
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\verification\modelsim\run_riscv_regression.ps1 `
+  -MaxCycles 200000
+```
+
+predictor-on 对照：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\verification\modelsim\run_riscv_regression.ps1 `
+  -MaxCycles 200000 `
+  -EnableBranchPredictor 1 `
+  -EnableBranchPredictorRedirect 1
+```
+
+ModelSim 2020.4 的稳定入口是 `vsim -batch`、显式 `modelsim.ini` 和 ASCII work directory。`vsim -c` 在当前安装上会触发 `FileWatch(fileName)` Tcl 初始化错误。
+
+## CoreMark 性能
+
+CoreMark 源码固定在 `third_party/coremark/`，TCM port 位于 `verification/coremark/`。架构测量合同为：
+
+```text
+cycles  = delta(mcycle)
+retired = delta(minstret)
+CPI     = cycles / retired
+```
+
+当前 direct-redirect、predictor-off 的 1-iteration validation smoke：
+
+```text
+cycles=384726 retired=315440 cpi_x1000=1219
+```
+
+该结果在两套仿真环境中一致，CRC 正确，但运行时间不足 CoreMark 官方至少 10 秒的计分要求，因此不是正式 CoreMark score，也不能推导 CoreMark/MHz。正式成绩必须在真实 FPGA 时钟下记录 compiler flags、iterations、运行时间、cycles、retired、CPI 和 CRC。
+
+详见 [`doc/verification/performance-baseline.md`](doc/verification/performance-baseline.md)。
+
+## FPGA 资源与时序
+
+当前仓库没有可用的紫光同创 PDS 工程、目标器件、板卡 pin constraint 或 implementation report，因此以下指标保持未测：
+
+- Fmax：`Not measured`；
+- LUT / FF：`Not measured`；
+- BRAM / DSP：`Not measured`；
+- WNS / TNS / critical path：`Not measured`；
+- CoreMark/MHz：`Not available yet`；
+- CoreMark/LUT：`Not available yet`。
+
+Verilator/ModelSim 的仿真 cycle 不能替代 FPGA implementation evidence。详见 [`doc/verification/fpga-implementation-baseline.md`](doc/verification/fpga-implementation-baseline.md)。
+
+## AI / YOLO 加速路线
+
+当前已建立固定 INT8 CPU workload：`dot_i8`、`gemm_i8`、`conv_i8`、`relu_i8`。它们用于检查 checksum、cycles、retired、CPI 及基础 profile event，不能等价为完整 YOLO 推理。
+
+后续 YOLO 路线仍需明确：
+
+- 轻量模型与 INT8 quantization 方案；
+- weights、activation 和 workspace 内存规模；
+- 64 KiB TCM 可容纳范围及 external DDR 需求；
+- dominant operators 与 CPU/Cache 瓶颈；
+- custom instruction、MAC/SIMD 或独立 accelerator 的资源收益。
+
+在模型、内存和 profile 证据明确前，不同时推进 predictor、custom ISA 和 accelerator。
+
+## 外设与系统集成
+
+当前 CPU top 尚未形成竞赛板级 UART/GPIO 子系统：
+
+| 项目 | 当前状态 |
+| --- | --- |
+| UART | 尚未集成 |
+| GPIO | 尚未集成 |
+| Machine external interrupt | testbench 注入路径已验证；无 PLIC |
+| Timer interrupt | core 内部 compare 路径已验证；无正式 CLINT/板级 timer |
+| AXI/APB peripheral path | TCM top 有 AXI-Lite 外部访问路径；板级地址映射未冻结 |
+
+## 如何运行
+
+WSL 原作者基础链路：
 
 ```powershell
 wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv && bash verification/wsl_baseline.sh"
 ```
 
-The script rebuilds `isa_sim`, regenerates the Verilator model, builds the SystemC harness, loads `isa_sim/images/basic.elf`, checks all ten supplied software test markers, and requires a zero exit status with `BASELINE_A_PASS`.
-
-### Baseline B: Windows ModelSim TCM regression
-
-Environment used for the first verified version:
-
-- ModelSim SE-64 `2020.4`, installed at `A:\modletech64_2020.4`
-- Python 3 for the standard-library ELF-to-memory converter
-- ASCII work directory under `C:\ultraembedded-riscv-modelsim\`
-
-From PowerShell at the repository root:
+Windows ModelSim TCM 基础链路：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\verification\modelsim\run_tcm_baseline.ps1
 ```
 
-The script converts `basic.elf` to a 64 KiB word image, compiles the TCM RTL and `tb_tcm_basic.v` with `+define+verilog_sim`, runs `vsim -batch`, releases reset, executes the image, and requires `BASELINE_B_PASS` with zero ModelSim errors and warnings.
-
-`vsim -c` is not the supported entry point in this environment because ModelSim 2020.4 reproduces a `FileWatch(fileName)` Tcl initialization error even with a minimal unrelated Verilog testcase. `-batch`, explicit `MODEL_TECH`/`MTI_HOME`, the installed `modelsim.ini`, and an ASCII work directory are the validated combination.
-
-## Current verification status
-
-The first baseline has been rerun from a clean build state:
-
-- WSL/SystemC/Verilator: ten `basic.elf` checks passed, simulation ended at approximately `109020 ns`, `BASELINE_A_PASS`.
-- Windows/ModelSim TCM: ten `basic.elf` checks passed, simulation ended at approximately `109010 ns`, `Errors: 0, Warnings: 0`, `BASELINE_B_PASS`.
-- Current working baseline matrix: 70 manifest entries, 64 runnable entries passed in both environments, 2 entries are explicitly unsupported, and 4 entries are not yet tested.
-- The current verification work adds architectural counters and directed CSR/trap/interrupt tests; no branch, pipeline, cache, or other microarchitectural optimization was made.
-- Cache ModelSim compatibility remains a separate issue: the cache RTL has declaration-order problems under ModelSim 2020.4 and is not part of this tag.
-
-Detailed evidence is in [`doc/verification/v0.1.0-tcm-baseline.md`](doc/verification/v0.1.0-tcm-baseline.md), the ISA matrix in [`doc/verification/isa-validation-matrix.md`](doc/verification/isa-validation-matrix.md), and the broader architecture audit in [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md).
-
-### Standard RV32IM regression
-
-The vendored test subset is built and run through the same TCM memory model on
-both supported paths. The manifest is the source of truth for the distinction
-between `run`, `unsupported`, and `not-yet-tested` entries.
-
-From PowerShell at the repository root:
+CoreMark 与 AI microbenchmark：
 
 ```powershell
-wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv; TEST_TIMEOUT_SEC=10 bash verification/riscv_tests/run_wsl_regression.sh"
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\verification\modelsim\run_riscv_regression.ps1 `
-  -MaxCycles 200000
-```
-
-Both commands must report zero failures. The WSL command ends with
-`BASELINE_A_PASS` plus a `REGRESSION_SUMMARY`; the ModelSim command reports a
-`MODELSIM_REGRESSION_SUMMARY`. See the [ISA validation matrix](doc/verification/isa-validation-matrix.md)
-for the exact current counts and limitations.
-
-### CoreMark smoke baseline
-
-The pinned CoreMark source is kept under `third_party/coremark/` and the
-RV32IM/TCM port is under `verification/coremark/`. Both supported simulation
-environments run the same ELF and check the same 2K validation CRCs:
-
-```powershell
-Push-Location C:\
-try {
-  wsl.exe -d Ubuntu-A -- env -i `
-    HOME=/home/shixin `
-    PATH=/home/shixin/.local/riscv-tools/usr/bin:/usr/bin:/bin `
-    ITERATIONS=1 RUN_TYPE=validation TEST_TIMEOUT_SEC=600 `
-    bash -lc 'cd /mnt/a/ultraembedded-riscv; bash verification/coremark/run_wsl_coremark.sh'
-}
-finally { Pop-Location }
-
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\verification\coremark\run_modelsim_coremark.ps1 `
   -Iterations 1 -RunType validation -ClockHz 1000000 -MaxCycles 2000000
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\verification\ai_microbench\run_modelsim_ai_microbench.ps1 `
+  -AiRepeat 16 -MaxCycles 2000000
 ```
 
-The current one-iteration smoke result is `cycles=423772`,
-`retired=315440`, and `cpi_x1000=1343` in both environments. It is a
-correctness and measurement-path result, not a reportable CoreMark score:
-the run intentionally does not meet CoreMark's ten-second reporting rule.
-See [`doc/verification/performance-baseline.md`](doc/verification/performance-baseline.md)
-for the measurement contract and formal benchmark requirements.
+## 目录结构
 
-### AI microbenchmark and profiling baseline
-
-The current performance branch also includes a deterministic bare-metal
-microbenchmark suite under `verification/ai_microbench/` with `dot_i8`,
-`gemm_i8`, `conv_i8`, and `relu_i8`. Each workload checks its checksum and
-reports a bracketed `mcycle`/`minstret` interval. With `AI_REPEAT=16`, the
-recorded intervals are:
-
-```text
-dot_i8  cycles=14402  retired=11318  cpi_x1000=1272  checksum=4656
-gemm_i8 cycles=134082 retired=117560 cpi_x1000=1140  checksum=49
-conv_i8 cycles=178403 retired=150617 cpi_x1000=1184  checksum=-3
-relu_i8 cycles=19073   retired=16887  cpi_x1000=1129  checksum=158
-```
-
-WSL/SystemC/Verilator and Windows/ModelSim use the same images, checksums, and
-event classes. The harnesses additionally report verification-only issue,
-hold, LSU, branch, redirect, interrupt, and issue-blocked counts; these are
-diagnostic probes, not architectural counters or performance claims. See
-[`doc/verification/ai-microbench-baseline.md`](doc/verification/ai-microbench-baseline.md)
-for the full table and reproduction commands.
-
-## Repository layout
-
-| Path | Purpose |
+| 路径 | 作用 |
 | --- | --- |
-| `core/riscv/` | Upstream CPU RTL. Keep close to upstream layout for synchronization. |
-| `top_tcm_axi/` | Primary competition baseline wrapper and original SystemC testbench. |
-| `top_cache_axi/` | Cache wrapper and original cache-oriented testbench; not in the first ModelSim baseline. |
-| `top_tcm_wrapper/` | Alternative TCM integration wrapper with fuller AXI signals. |
-| `isa_sim/` | C++ ISA simulator, ELF loader, cosimulation API, and supplied images. |
-| `verification/` | Reproducible WSL and Windows ModelSim baseline entry points. |
-| `third_party/riscv-tests/` | Vendored RV32I/RV32M and selected machine-mode test sources used by the manifest. |
-| `third_party/riscv-test-env/` | Vendored headers and environment macros required to build the selected tests. |
-| `third_party/coremark/` | Pinned, license-preserving CoreMark benchmark sources. |
-| `doc/` | Architecture audit, upstream specifications, and verification evidence. |
-| `.codex/skills/` | Repository-local operating procedures, including Git hygiene. |
+| `core/riscv/` | CPU 核心 RTL |
+| `top_tcm_axi/` | 当前正式 TCM baseline wrapper 与 SystemC testbench |
+| `top_cache_axi/` | 上游 I/D cache wrapper 与原始 cache testbench |
+| `top_tcm_wrapper/` | 更完整 AXI 信号的 TCM wrapper |
+| `isa_sim/` | C++ ISA simulator、ELF loader、cosimulation API |
+| `verification/` | WSL、ModelSim、riscv-tests、CoreMark、AI microbench |
+| `third_party/` | 固定版本的 riscv-tests、test-env 和 CoreMark |
+| `doc/` | 架构、验证、性能、Cache 和 FPGA 证据文档 |
 
-Generated build directories, ModelSim work state, VCD/WLF waveforms, temporary memory images, PDS project trees, bitstreams, and large reports are excluded by `.gitignore` and must not enter commits accidentally.
+## Git 与版本管理
 
-## Git and versioning policy
+- `main` 是稳定、已验证的比赛开发线；
+- `v0.1.0-tcm-baseline` 冻结最初双环境 TCM baseline；
+- `v0.2.0-perf-baseline` 冻结 counters、CoreMark/AI workload 和 direct redirect 性能 baseline；
+- 实验分支使用 Conventional Commits，并保持 RTL、test、docs 的职责可审查；
+- 不提交 build、obj、ModelSim work/log、WLF/VCD、ELF/MEMH、PDS generated tree、bitstream、凭据或本机配置；
+- 新功能进入 `main` 前必须重跑对应双环境 regression 和 benchmark correctness gate。
 
-- `main` is the stable, verified competition line.
-- `feat/...`, `fix/...`, `perf/...`, and `test/...` branches are used for isolated work.
-- A change reaches `main` only after the relevant regression evidence is recorded.
-- Use Conventional Commits and keep fixes, tests, documentation, and maintenance separable.
-- Annotated tags require exact reproducible evidence; future board versions must also record PDS version, device, constraints, frequency, timing result, bitstream hash, image hash, and board evidence.
-- The original upstream remote is retained as `upstream`; the competition repository is `origin` when available.
+## 当前限制
 
-The detailed local policy is [`.codex/skills/riscv-git-hygiene/SKILL.md`](.codex/skills/riscv-git-hygiene/SKILL.md).
+- 不是完整 RISC-V compliance 结果；
+- predictor recovery 的当前实现范围有限，且尚无性能收益；
+- Cache 尚无 ModelSim elaboration 与 functional regression；
+- 没有正式 CoreMark score、CoreMark/MHz 或 CoreMark/LUT；
+- 没有 PDS 资源/时序结果；
+- 没有完整 YOLO 模型、DDR 和板级外设集成；
+- Supervisor、MMU、PMP、A/C/F/D 不属于当前正式 baseline。
 
-## Known limitations
+## 后续计划
 
-- This checkout contains a deliberately limited, vendored subset of `riscv-tests` and `riscv-test-env`; it does not contain a complete compliance suite, RISCV-DV, or benchmark source tree.
-- `basic.elf` is the current verified software image; passing it is not a complete ISA compliance claim.
-- The current standard-test matrix has 64 passes, 2 unsupported entries, and 4 not-yet-tested entries. RV32I is therefore not claimed complete.
-- `misa` reports RV32I/M for the default configuration. A/C/F/D are not claimed as implemented or verified.
-- The baseline has machine-mode CSR, trap, external-interrupt injection, timer-compare, and `minstret` directed coverage. Supervisor mode, MMU, and PMP remain outside the default baseline.
-- CoreMark correctness and interval metrics are validated in both simulators, but no reportable CoreMark score or CoreMark/MHz result is claimed yet.
-- The AI microbenchmark interval and profile data are repeatable in both simulators, but the profile data is verification-only and does not by itself prove an optimization result.
-- Cache RTL passes Verilator lint but currently has ModelSim 2020.4 declaration compatibility errors.
-- Supervisor, MMU-enabled, Linux, timer-interrupt, and board-level configurations require separate directed tests.
-- The formal baseline keeps `ENABLE_BRANCH_PREDICTOR=0`. An observational 16-entry
-  BTB/BHT prototype is available for branch statistics and passes both regressions,
-  but it has no validated pipeline squash/kill path and must not be treated as a
-  performance optimization.
+1. 保持 71-entry 双环境 regression、CoreMark CRC 和 AI checksum 全绿；
+2. 优先分析 predictor 负收益的 recovery penalty、fetch latency 和 issue blocking，而不是盲目扩大 BTB/BHT；
+3. 独立修复 cache 的 ModelSim 兼容性并建立 cache functional smoke；
+4. 获取 PDS、目标器件、板卡和约束，建立可重复的 synthesis/implementation 流程；
+5. 根据 CoreMark、INT8 profile 和 FPGA 资源结果选择下一项 CPU/AI 优化；
+6. 完成 UART、GPIO、timer、interrupt 和板级程序加载闭环。
 
-## Roadmap
+## 上游项目与许可证
 
-1. Keep Baseline A/B and the current 70-entry matrix green while adding directed CSR, system, trap, and interrupt tests.
-2. Fill the not-yet-tested and unsupported entries only when the baseline configuration and termination protocol are defined clearly.
-3. Add fixed-version compliance-oriented tests and preserve their images/log summaries.
-4. Resolve cache tool portability independently and establish a cache regression.
-5. Extend the measurement infrastructure with branch penalty, load-use stalls, area, and Fmax evidence while preserving the architectural counter contract.
-6. Evaluate one competition architecture direction at a time: branch prediction, memory system, ISA extension, or FPGA integration.
-7. Establish PDS synthesis, timing closure, and board bring-up records before claiming hardware results.
+- 上游仓库：<https://github.com/ultraembedded/riscv>
+- 上游基线 commit：`7ae6f803e30f78c6ea3121e73c3adf50ff912730`
+- 上游 release：`v1.0.1`
+- 原作者/组织：Ultra-Embedded.com
+- 许可证：BSD，详见仓库根目录 [`LICENSE`](LICENSE)
 
-## Third-party and redistribution note
-
-This repository includes upstream ultraembedded source and supplied third-party or generated materials. Preserve each license and copyright notice. PDS-generated outputs, vendor IP, board files, and future external test suites may carry additional terms. The repository is private while this inventory and permission review remain incomplete.
+本仓库保留上游历史、版权和许可证文本。不得翻译、删除或弱化第三方 copyright、license 与 disclaimer。
