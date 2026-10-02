@@ -109,9 +109,18 @@ begin
 end
 else if (branch_request_i)
 begin
-    branch_q       <= 1'b1;
-    branch_pc_q    <= branch_pc_i;
-    branch_priv_q  <= branch_priv_i;
+    if (stall_w)
+    begin
+        branch_q       <= 1'b1;
+        branch_pc_q    <= branch_pc_i;
+        branch_priv_q  <= branch_priv_i;
+    end
+    else
+    begin
+        branch_q       <= 1'b0;
+        branch_pc_q    <= 32'b0;
+        branch_priv_q  <= `PRIV_MACHINE;
+    end
 end
 else if (icache_rd_o && icache_accept_i)
 begin
@@ -122,6 +131,11 @@ end
 wire        branch_w      = branch_q;
 wire [31:0] branch_pc_w   = branch_pc_q;
 wire [1:0]  branch_priv_w = branch_priv_q;
+wire        branch_direct_w = branch_request_i && !stall_w;
+wire        branch_pending_w = branch_w && !stall_w;
+wire        branch_redirect_w = branch_direct_w || branch_pending_w;
+wire [31:0] branch_redirect_pc_w = branch_direct_w ? branch_pc_i : branch_pc_w;
+wire [1:0]  branch_redirect_priv_w = branch_direct_w ? branch_priv_i : branch_priv_w;
 
 assign squash_decode_o    = branch_request_i;
 
@@ -131,7 +145,7 @@ assign squash_decode_o    = branch_request_i;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     active_q    <= 1'b0;
-else if (branch_w && ~stall_w)
+else if (branch_redirect_w)
     active_q    <= 1'b1;
 
 //-------------------------------------------------------------
@@ -182,8 +196,8 @@ always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     pc_f_q  <= 32'b0;
 // Branch request
-else if (branch_w && ~stall_w)
-    pc_f_q  <= branch_pc_w;
+else if (branch_redirect_w)
+    pc_f_q  <= branch_redirect_pc_w;
 // NPC
 else if (!stall_w)
     pc_f_q  <= {icache_pc_w[31:2],2'b0} + 32'd4;
@@ -195,14 +209,14 @@ always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     priv_f_q  <= `PRIV_MACHINE;
 // Branch request
-else if (branch_w && ~stall_w)
-    priv_f_q  <= branch_priv_w;
+else if (branch_redirect_w)
+    priv_f_q  <= branch_redirect_priv_w;
 
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     branch_d_q  <= 1'b0;
 // Branch request
-else if (branch_w && ~stall_w)
+else if (branch_redirect_w)
     branch_d_q  <= 1'b1;
 // NPC
 else if (!stall_w)
@@ -210,6 +224,8 @@ else if (!stall_w)
 
 assign icache_pc_w       = pc_f_q;
 assign icache_priv_w     = priv_f_q;
+// The registered branch_d_q pulse preserves the existing response discard
+// window without feeding the combinational branch request back into decode.
 assign fetch_resp_drop_w = branch_w | branch_d_q;
 
 // Last fetch address
