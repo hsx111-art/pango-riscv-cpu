@@ -2,6 +2,19 @@
 #include <queue>
 
 //-----------------------------------------------------------------
+// reset_stats: Clear observed AXI handshake counters
+//-----------------------------------------------------------------
+void tb_axi4_mem::reset_stats(void)
+{
+    m_read_bursts = 0;
+    m_line_refill_bursts = 0;
+    m_read_beats = 0;
+    m_write_bursts = 0;
+    m_line_writeback_bursts = 0;
+    m_write_beats = 0;
+}
+
+//-----------------------------------------------------------------
 // process: Handle AXI requests
 //-----------------------------------------------------------------
 void tb_axi4_mem::process(void)
@@ -19,6 +32,10 @@ void tb_axi4_mem::process(void)
         // Read command
         if (axi_i.ARVALID && axi_o.ARREADY)
         {
+            m_read_bursts++;
+            if (axi_i.ARLEN == 7)
+                m_line_refill_bursts++;
+
             sc_uint <AXI4_ADDR_W> next_addr = axi_i.ARADDR & ~calc_wrap_mask(0);
             axi4_master           axi_first = axi_i;
 
@@ -41,6 +58,10 @@ void tb_axi4_mem::process(void)
         // Write command
         if (axi_i.AWVALID && axi_o.AWREADY)
         {
+            m_write_bursts++;
+            if (axi_i.AWLEN == 7)
+                m_line_writeback_bursts++;
+
             // Record command
             axi_wr_req = axi_i;
         }
@@ -48,6 +69,7 @@ void tb_axi4_mem::process(void)
         // Write data
         if (axi_i.WVALID && axi_o.WREADY)
         {
+            m_write_beats++;
             sc_assert(axi_wr_req.AWVALID);
 
             axi4_master item = axi_wr_req;
@@ -72,6 +94,7 @@ void tb_axi4_mem::process(void)
 
         if (axi_o.RVALID && axi_i.RREADY)
         {
+            m_read_beats++;
             axi_o.RVALID = false;
             axi_o.RDATA  = 0;
             axi_o.RID    = 0;

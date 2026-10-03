@@ -4,6 +4,7 @@
 #include "axi4.h"
 #include "axi4_defines.h"
 #include "tb_memory.h"
+#include <stdint.h>
 
 //-------------------------------------------------------------
 // tb_axi4_mem: AXI4 testbench memory
@@ -28,6 +29,7 @@ public:
     { 
         SC_CTHREAD(process, clk_in.pos());
         m_enable_delays = true;
+        reset_stats();
     }
 
     //-------------------------------------------------------------
@@ -53,6 +55,14 @@ public:
     void         write32(uint32_t addr, uint32_t data, uint8_t strb = 0xF);
     uint32_t     read32(uint32_t addr);
 
+    void         reset_stats(void);
+    uint64_t     read_bursts(void) const { return m_read_bursts; }
+    uint64_t     line_refill_bursts(void) const { return m_line_refill_bursts; }
+    uint64_t     read_beats(void) const { return m_read_beats; }
+    uint64_t     write_bursts(void) const { return m_write_bursts; }
+    uint64_t     line_writeback_bursts(void) const { return m_line_writeback_bursts; }
+    uint64_t     write_beats(void) const { return m_write_beats; }
+
     void         process(void);
     bool         delay_cycle(void) { return m_enable_delays ? rand() & 1 : 0; }
 
@@ -61,6 +71,12 @@ public:
 
 protected:
     bool m_enable_delays;
+    uint64_t m_read_bursts;
+    uint64_t m_line_refill_bursts;
+    uint64_t m_read_beats;
+    uint64_t m_write_bursts;
+    uint64_t m_line_writeback_bursts;
+    uint64_t m_write_beats;
 };
 
 #endif

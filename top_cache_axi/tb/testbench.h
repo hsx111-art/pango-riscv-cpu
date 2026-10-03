@@ -14,6 +14,7 @@
 #include "elf_load.h"
 
 #include <unistd.h>
+#include <stdint.h>
 
 //-----------------------------------------------------------------
 // Module
@@ -70,6 +71,26 @@ public:
         m_dut->add_trace(fp, "");
     }
 
+    void abort(void) override
+    {
+        if (!m_metrics_printed)
+        {
+            cout << "CACHE_METRICS cycles=" << m_cycles
+                 << " icache_read_bursts=" << m_icache_mem->read_bursts()
+                 << " icache_line_refills=" << m_icache_mem->line_refill_bursts()
+                 << " icache_read_beats=" << m_icache_mem->read_beats()
+                 << " dcache_read_bursts=" << m_dcache_mem->read_bursts()
+                 << " dcache_line_refills=" << m_dcache_mem->line_refill_bursts()
+                 << " dcache_read_beats=" << m_dcache_mem->read_beats()
+                 << " dcache_write_bursts=" << m_dcache_mem->write_bursts()
+                 << " dcache_line_writebacks=" << m_dcache_mem->line_writeback_bursts()
+                 << " dcache_write_beats=" << m_dcache_mem->write_beats()
+                 << endl;
+            m_metrics_printed = true;
+        }
+        testbench_vbase::abort();
+    }
+
 
     void set_testcase(int tc) { }
     void set_delays(bool en) { }
@@ -103,6 +124,7 @@ public:
         m_dcache_mem->axi_in(mem_d_out);
         m_dcache_mem->axi_out(mem_d_in);
 
+        m_metrics_printed = false;
         m_cycles = 0;
 
         verilator_trace_enable("verilator.vcd", m_dut);
@@ -188,5 +210,6 @@ public:
         //m_dut->u_core.u_decode.set_register(r, val);
     }
 
-    uint32_t m_cycles;
+    bool      m_metrics_printed;
+    uint64_t  m_cycles;
 };
