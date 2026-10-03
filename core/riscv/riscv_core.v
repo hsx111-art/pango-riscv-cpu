@@ -74,6 +74,7 @@ module riscv_core
     ,input           mem_i_error_i
     ,input  [ 31:0]  mem_i_inst_i
     ,input           intr_i
+    ,input           timer_intr_i
     ,input  [ 31:0]  reset_vector_i
     ,input  [ 31:0]  cpu_id_i
 
@@ -423,6 +424,7 @@ u_csr
      .clk_i(clk_i)
     ,.rst_i(rst_i)
     ,.intr_i(intr_i)
+    ,.timer_intr_i(timer_intr_i)
     ,.opcode_valid_i(csr_opcode_valid_w)
     ,.opcode_opcode_i(csr_opcode_opcode_w)
     ,.opcode_pc_i(csr_opcode_pc_w)

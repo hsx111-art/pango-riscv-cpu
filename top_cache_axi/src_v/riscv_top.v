@@ -84,6 +84,7 @@ module riscv_top
     ,input  [  3:0]  axi_d_rid_i
     ,input           axi_d_rlast_i
     ,input           intr_i
+    ,input           timer_intr_i
     ,input  [ 31:0]  reset_vector_i
 
     // Outputs
@@ -221,6 +222,7 @@ u_core
     ,.mem_i_error_i(icache_error_w)
     ,.mem_i_inst_i(icache_inst_w)
     ,.intr_i(intr_i)
+    ,.timer_intr_i(timer_intr_i)
     ,.reset_vector_i(reset_vector_i)
     ,.cpu_id_i(cpu_id_w)
 

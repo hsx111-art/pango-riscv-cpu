@@ -179,6 +179,7 @@ module tb_tcm_regression #(
         .axi_t_arburst_i(axi_t_arburst_i),
         .axi_t_rready_i(axi_t_rready_i),
         .intr_i(intr_i),
+        .timer_intr_i(1'b0),
         .axi_i_awvalid_o(axi_i_awvalid_o),
         .axi_i_awaddr_o(axi_i_awaddr_o),
         .axi_i_wvalid_o(axi_i_wvalid_o),

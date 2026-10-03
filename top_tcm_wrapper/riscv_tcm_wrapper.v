@@ -92,6 +92,7 @@ module riscv_tcm_wrapper
     ,input  [  1:0]  axi_t_arburst_i
     ,input           axi_t_rready_i
     ,input  [ 31:0]  intr_i
+    ,input           timer_intr_i
 
     // Outputs
     ,output          axi_i_awvalid_o
@@ -200,6 +201,7 @@ u_core
     ,.mem_i_error_i(ifetch_error_w)
     ,.mem_i_inst_i(ifetch_inst_w)
     ,.intr_i(intr_i[0:0])
+    ,.timer_intr_i(timer_intr_i)
     ,.reset_vector_i(boot_vector_w)
     ,.cpu_id_i(cpu_id_w)
 

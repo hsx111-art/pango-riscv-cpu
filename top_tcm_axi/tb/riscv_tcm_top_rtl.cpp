@@ -40,6 +40,8 @@ riscv_tcm_top_rtl::riscv_tcm_top_rtl(sc_module_name name): sc_module(name)
     m_rtl->axi_t_arburst_i(m_axi_t_arburst_in);
     m_rtl->axi_t_rready_i(m_axi_t_rready_in);
     m_rtl->intr_i(m_intr_in);
+    m_rtl->timer_intr_i(m_timer_intr_in);
+    m_timer_intr_in.write(false);
     m_rtl->axi_i_awvalid_o(m_axi_i_awvalid_out);
     m_rtl->axi_i_awaddr_o(m_axi_i_awaddr_out);
     m_rtl->axi_i_wvalid_o(m_axi_i_wvalid_out);

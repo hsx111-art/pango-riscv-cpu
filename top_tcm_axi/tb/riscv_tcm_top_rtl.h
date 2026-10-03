@@ -88,6 +88,7 @@ private:
     sc_signal <sc_uint<2> > m_axi_t_arburst_in;
     sc_signal <bool> m_axi_t_rready_in;
     sc_signal <sc_uint <32> > m_intr_in;
+    sc_signal <bool> m_timer_intr_in;
 
     sc_signal <bool> m_axi_i_awvalid_out;
     sc_signal <sc_uint<32> > m_axi_i_awaddr_out;

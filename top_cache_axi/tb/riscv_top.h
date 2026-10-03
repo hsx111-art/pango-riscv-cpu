@@ -85,6 +85,7 @@ private:
     sc_signal <sc_uint<4> > m_axi_d_rid_in;
     sc_signal <bool> m_axi_d_rlast_in;
     sc_signal <bool> m_intr_in;
+    sc_signal <bool> m_timer_intr_in;
     sc_signal <sc_uint<32> > m_reset_vector_in;
 
     sc_signal <bool> m_axi_i_awvalid_out;

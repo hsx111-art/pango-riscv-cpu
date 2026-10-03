@@ -38,6 +38,8 @@ riscv_top::riscv_top(sc_module_name name): sc_module(name)
     m_rtl->axi_d_rid_i(m_axi_d_rid_in);
     m_rtl->axi_d_rlast_i(m_axi_d_rlast_in);
     m_rtl->intr_i(m_intr_in);
+    m_rtl->timer_intr_i(m_timer_intr_in);
+    m_timer_intr_in.write(false);
     m_rtl->reset_vector_i(m_reset_vector_in);
     m_rtl->axi_i_awvalid_o(m_axi_i_awvalid_out);
     m_rtl->axi_i_awaddr_o(m_axi_i_awaddr_out);

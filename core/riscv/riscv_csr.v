@@ -55,6 +55,7 @@ module riscv_csr
      input           clk_i
     ,input           rst_i
     ,input           intr_i
+    ,input           timer_intr_i
     ,input           opcode_valid_i
     ,input  [ 31:0]  opcode_opcode_i
     ,input  [ 31:0]  opcode_pc_i
@@ -154,7 +155,7 @@ wire satp_update_w = (opcode_valid_i && (set_r || clr_r) && csr_write_r && (opco
 //-----------------------------------------------------------------
 // CSR register file
 //-----------------------------------------------------------------
-wire timer_irq_w = 1'b0;
+wire timer_irq_w = timer_intr_i;
 
 wire [31:0] misa_w = SUPPORT_MULDIV ? (`MISA_RV32 | `MISA_RVI | `MISA_RVM): (`MISA_RV32 | `MISA_RVI);
 
