@@ -3,6 +3,8 @@
 ###############################################################################
 VERILATOR_SRC ?= /usr/share/verilator/include
 SYSTEMC_HOME  ?= /usr/local/systemc-2.3.1
+SYSTEMC_INCLUDE ?= $(if $(wildcard $(SYSTEMC_HOME)/include/systemc.h),$(SYSTEMC_HOME)/include,/usr/include)
+SYSTEMC_LIBDIR  ?= $(if $(wildcard $(SYSTEMC_HOME)/lib-linux64/libsystemc.a),$(SYSTEMC_HOME)/lib-linux64,/usr/lib/x86_64-linux-gnu)
 
 OBJ_DIR      ?= obj/
 EXE_DIR      ?= build/
@@ -17,7 +19,7 @@ INCLUDE_PATH += ./verilated
 INCLUDE_PATH += ../../isa_sim
 INCLUDE_PATH += $(VERILATOR_SRC)
 INCLUDE_PATH += $(VERILATOR_SRC)/vltstd
-INCLUDE_PATH += $(SYSTEMC_HOME)/include
+INCLUDE_PATH += $(SYSTEMC_INCLUDE)
 
 # Dependancies
 LIB_PATH     ?=
@@ -30,7 +32,7 @@ CFLAGS       ?= -fpic -O2
 CFLAGS       += $(patsubst %,-I%,$(INCLUDE_PATH))
 CFLAGS       += -DVM_TRACE=1
 LDFLAGS      ?= -O2
-LDFLAGS      += -L$(SYSTEMC_HOME)/lib-linux64 
+LDFLAGS      += -L$(SYSTEMC_LIBDIR)
 LDFLAGS      += $(patsubst %,-L%,$(LIB_PATH))
 
 EXTRA_CLEAN_FILES ?=
