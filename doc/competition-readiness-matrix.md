@@ -14,9 +14,9 @@ alone is not enough.
 | Timer and machine timer IRQ | DONE | `mtime/mtimecmp`, `mcause=0x80000007`, handler and `MRET` checked |
 | Basic exceptions | DONE | ECALL, EBREAK, illegal and misaligned directed tests pass |
 | TCM competition top | DONE | ModelSim and WSL/Verilator produce `COMPETITION_TCM_PASS` |
-| 2-way ICache | PARTIAL | RTL exists and cache smoke passes in Verilator; ModelSim compatibility remains blocked |
-| 2-way DCache | PARTIAL | Basic load/store/refill smoke passes in Verilator; no Pango implementation data yet |
-| AXI burst path | PARTIAL | Present in cache RTL; full performance and target-board evidence not measured |
+| 2-way ICache | PARTIAL | Basic and directed cache workloads pass in WSL/SystemC/Verilator; ModelSim cache compatibility remains blocked |
+| 2-way DCache | PARTIAL | Directed load/store, dirty eviction, writeback and refill workload passes in WSL/SystemC/Verilator; board evidence is unavailable |
+| AXI burst path | PARTIAL | BFM observes 8-beat refill/writeback bursts; hit rate, performance and target-board evidence are not measured |
 | Dynamic branch predictor | PARTIAL | Optional BTB/BHT recovery is regression-covered; current measured configuration keeps it off |
 | CoreMark smoke | DONE | CRCs and architectural `mcycle/minstret` interval pass in both environments |
 | Official CoreMark score | BLOCKED | Must run at least 10 seconds with a real target clock |
@@ -55,4 +55,14 @@ COMPETITION_TCM_PASS cycles=1123 gpio_out=600d0001
 ```
 
 The cache gate is intentionally separate because its ModelSim source-compatibility
-problem has not been silently converted into a passing result.
+problem has not been silently converted into a passing result. The WSL cache
+functional gate is:
+
+```text
+CACHE_WSL_PASS tests=10
+CACHE_WSL_DIRECTED_PASS
+```
+
+The directed workload checks dirty two-way conflict replacement and requires at
+least two observed 8-beat DCache writeback bursts. Detailed evidence is recorded
+in `doc/verification/cache-functional-evidence.md`.

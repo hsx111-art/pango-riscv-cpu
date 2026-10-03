@@ -20,15 +20,24 @@
 ## 验证状态
 
 - TCM top：Baseline A/B 已验证。
-- cache top：使用 Verilator 5.020、`CORE=riscv` 和
-  `SRC=riscv_top` 显式生成成功；这只证明 RTL 可编译，不等于 cache
-  functional regression 已建立。
+- cache top：使用 Verilator 5.020/SystemC 建立了 functional regression。
+  `verification/cache/run_wsl_cache_smoke.sh` 会先运行原始 `basic.elf`，
+  再运行 directed dirty-eviction workload，并检查明确的 PASS marker 与
+  AXI 事务下界。
+- basic cache smoke：WSL/SystemC/Verilator 报告
+  `CACHE_WSL_PASS tests=10`。
+- directed cache workload：WSL/SystemC/Verilator 在 `SEED=1` 与 `SEED=7`
+  均报告 `CACHE_WORKLOAD_PASS` 和 `CACHE_WSL_DIRECTED_PASS`；两次均观察到
+  12 条 ICache line refill、8 条 DCache line refill、2 条 DCache
+  writeback burst，以及 16 个 writeback beat。cycle 数会随随机 handshake
+  延迟变化，不能用单次 cycle 数替代 cache 性能结论。
 - ModelSim 2020.4：在独立 work library 中复现 14 个编译错误。错误集中在
   `dcache_core.v` 的 `tag*_hit_m_w`、`data*_data_out_m_w`、`flush_addr_q`
   先使用后声明/重复声明，以及 `icache.v` 的 `flush_addr_q` 先使用后声明。
   这是工具兼容性问题，不能归因于 predictor recovery 改动；本轮不修改
   cache RTL，也不把 cache top 纳入 TCM regression。
-- cache Fmax、资源、miss penalty、hit rate：`Not measured`。
+- BFM 统计是外部 AXI handshake 观察值，不是 RTL 内部精确的 hit/miss
+  counter。cache Fmax、资源、miss penalty、hit rate：`Not measured`。
 
 ### Reproduction commands
 
@@ -43,11 +52,16 @@ env -u NAME -u SRC -u CORE make -C /mnt/a/ultraembedded-riscv/top_cache_axi/tb \
 ModelSim compile audit（Windows）：使用 `+define+verilog_sim`、
 `+incdir+A:\ultraembedded-riscv\core\riscv` 和 cache source list 编译
 `riscv_top.v`。当前命令在 `dcache_core.v`/`icache.v` 声明顺序处停止，尚未
-进入 cache elaboration。
+进入 cache elaboration。WSL functional regression 的固定入口是：
+
+```bash
+TEST_TIMEOUT_SEC=120 bash verification/cache/run_wsl_cache_smoke.sh
+SEED=7 TEST_TIMEOUT_SEC=120 bash verification/cache/run_wsl_cache_smoke.sh
+```
 
 ## 后续顺序
 
 1. 保持 TCM predictor recovery correctness gate 独立为当前主线。
-2. 单独修复并回归 cache top 的 ModelSim 声明顺序兼容性，再建立 cache
-   functional smoke；这不是 predictor 性能实验的一部分。
+2. 单独修复并回归 cache top 的 ModelSim 声明顺序兼容性；WSL cache
+   functional smoke 已建立，但这不是 predictor 性能实验的一部分。
 3. 只有 cache regression 和 PDS 实现数据都具备后，才评估 cache 微架构优化。

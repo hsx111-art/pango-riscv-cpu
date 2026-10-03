@@ -94,6 +94,8 @@ predictor-on 已通过 WSL 和 ModelSim 的完整 correctness gate，但当前�
 - Verilator 5.020 cache top compile audit 通过；
 - ModelSim 2020.4 在 `dcache_core.v` 和 `icache.v` 上复现 14 个先使用后声明/重复声明兼容错误；
 - `verification/cache/run_wsl_cache_smoke.sh` 已覆盖 basic image 的初始化、乘除法、移位、比较和 load/store smoke；
+- 同一脚本还运行 directed dirty-eviction workload，检查 ICache/DCache refill、load hit、store、read-after-write、两路冲突替换、dirty writeback、refill 后数据保持和 AXI 8-beat burst；`SEED=1` 与 `SEED=7` 均已通过；
+- Cache BFM 已记录真实 AXI handshake 的 refill/writeback burst、beat 和仿真 cycle 统计；这些统计不是 RTL 内部精确 hit/miss counter；
 - cache hit rate、miss penalty、PDS 资源和时序尚未建立；
 - Cache 问题独立于 TCM predictor correctness gate，不阻塞当前稳定 baseline。
 
@@ -276,7 +278,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verification\modelsim\
 
 - 不是完整 RISC-V compliance 结果；
 - predictor recovery 的当前实现范围有限，且尚无性能收益；
-- Cache 尚无 ModelSim elaboration 与 functional regression，当前以 Verilator smoke 为证据；
+- Cache 已有 WSL/SystemC/Verilator basic 与 directed functional regression，但尚无 ModelSim elaboration/functional regression；
 - 没有正式 CoreMark score、CoreMark/MHz 或 CoreMark/LUT；
 - 没有 PDS 资源/时序结果；
 - 没有完整 YOLO 模型、DDR 和板级外设集成；

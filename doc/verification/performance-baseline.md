@@ -126,7 +126,7 @@ seedcrc          : 0x18f2
 [0]crcmatrix     : 0x0747
 [0]crcstate      : 0x8d84
 [0]crcfinal      : 0xe3c1
-COREMARK_METRICS cycles=384726 retired=315440 cpi_x1000=1219
+COREMARK_METRICS cycles=375330 retired=315440 cpi_x1000=1189
 ```
 
 The one-iteration smoke run also prints `Total time (secs): 0` and the
