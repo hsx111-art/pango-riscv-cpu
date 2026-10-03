@@ -8,7 +8,7 @@
 
 | 项目 | 当前记录 |
 | --- | --- |
-| Git base revision | `6e3c844`，分支 `perf/microarchitecture-profiling`；本轮提交以 Git log 为准 |
+| Git base revision | 分支 `perf/microarchitecture-profiling`；具体 revision 以本轮提交后的 `git log` 为准 |
 | CPU | RV32IM，Machine mode，MMU off |
 | 主要验证 top | `top_tcm_axi/src_v/riscv_tcm_top.v` |
 | TCM | 64 KiB，CPU 与 AXI 装载/访问路径 |
@@ -28,8 +28,9 @@
 | C/F/D/A extensions | Not implemented/validated | 当前项目不声明这些扩展 |
 | I/D cache | Implemented in cache top | `top_cache_axi` has 2-way cache; ModelSim compatibility still open |
 | Dynamic branch prediction | Optional 16-entry BTB/BHT with recovery path | `directed/predictor_recovery` and full matrix pass both environments；predictor-on benchmark is slower |
-| UART/GPIO | Not available in current CPU top | No competition board peripheral integration in this checkout |
-| Timer source | Baseline source is tied low | `core/riscv/riscv_csr.v` sets `timer_irq_w = 1'b0` |
+| UART/GPIO | Validated for competition RTL smoke | `competition/competition_top.v` and `tb_competition.v` check UART markers, GPIO input/output and output-enable; board pins are not assigned yet |
+| Timer source | Validated for competition RTL smoke | `competition_peripherals.v` implements `mtime/mtimecmp` and drives the core `timer_intr_i` path; this is not a full CLINT/PLIC claim |
+| Competition integration top | Validated for RTL smoke | WSL/Verilator and ModelSim both produce `COMPETITION_TCM_PASS cycles=1123 gpio_out=600d0001` |
 
 ## 性能指标
 
@@ -43,11 +44,11 @@ CPI     = cycles / retired
 
 | workload | 当前 smoke 结果 | 说明 |
 | --- | --- | --- |
-| CoreMark validation, 1 iteration, predictor off | 384,726 cycles; 315,440 retired; CPI 1.219 | 正确性/测量通路 smoke，不满足正式十秒计分条件 |
+| CoreMark validation, 1 iteration, direct redirect + MUL E1 bypass, predictor off | 375,330 cycles; 315,440 retired; CPI 1.189 | 正确性/测量通路 smoke，不满足正式十秒计分条件 |
 | CoreMark validation, 1 iteration, predictor on | 410,143 cycles; 315,440 retired; CPI 1.300 | 功能 PASS，但比正式 baseline 慢 6.59% |
-| `dot_i8` | 13,392 cycles at `AI_REPEAT=16` | checksum 4656 |
+| `dot_i8` | 12,368 cycles | checksum 4656 |
 | `gemm_i8` | 125,841 cycles at `AI_REPEAT=16` | checksum 49 |
-| `conv_i8` | 169,138 cycles at `AI_REPEAT=16` | checksum -3 |
+| `conv_i8` | 159,922 cycles | checksum -3 |
 | `relu_i8` | 18,000 cycles at `AI_REPEAT=16` | checksum 158 |
 | CoreMark/MHz | Not available yet | 缺少真实 FPGA 时钟与正式运行时长 |
 | IPC | Not reported | 当前为单主 issue；CPI 足够支撑 baseline 比较 |
@@ -84,6 +85,12 @@ CPI     = cycles / retired
 
 当前 INT8 workload 只证明 CPU 算子和计量通路可运行，不能等价为 YOLO
 推理结果或 FPGA 加速结论。
+
+竞赛 UART image 使用 `OUTPUT_DEVICE=competition-uart`，将 CoreMark 字符输出
+映射到 `0x10000000`/`0x10000004`；`verification/coremark/build_fpga_coremark.sh`
+同时生成 ELF、MEMH 和构建参数记录。当前 `ITERATIONS=1` UART 运行仍是
+short-run correctness smoke，正式 CoreMark 分数必须在真实 Pango 时钟下满足
+至少十秒的测量条件。
 
 ## 指标实验规则
 

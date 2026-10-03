@@ -60,6 +60,14 @@ the existing `dscratch` simulation-control CSR for character output and exit.
 The startup file initializes `sp` to `0x0000fff0`, calls `main`, emits a
 harness completion marker, and then requests simulation exit.
 
+For a board-facing image, use `OUTPUT_DEVICE=competition-uart`. This selects
+the same UART TX/status MMIO map as `competition/competition_peripherals.v`
+(`0x10000000` and `0x10000004`) while leaving the benchmark algorithm and
+counter interval unchanged. `verification/coremark/build_fpga_coremark.sh`
+builds a performance-seed ELF and MEMH image and records the source commit,
+iteration count and clock assumption. The simulation-only default remains
+`OUTPUT_DEVICE=sim`, so existing dscratch-based runners are unchanged.
+
 ## Reproduce the smoke run
 
 WSL/SystemC/Verilator:

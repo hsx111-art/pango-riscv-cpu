@@ -28,7 +28,8 @@
 - `SUPPORT_MULDIV=1` 时启用硬件乘除法；
 - 稳定 baseline 使用 `top_tcm_axi` 和 64 KiB 双口 TCM；
 - TCM 内程序入口为 `0x00002000`，CPU reset 与装载接口 reset 分离；
-- `top_cache_axi` 提供独立 I/D cache 的另一套上游 wrapper，但尚未进入正式 functional regression。
+- `top_cache_axi` 提供独立 I/D cache 的另一套上游 wrapper；当前已有 Verilator functional smoke，ModelSim 兼容性仍单独跟踪；
+- `competition/competition_top.v` 提供面向赛题交付的 TCM + UART + GPIO + timer/interrupt 集成 top。
 
 详细架构审计见 [`doc/project_audit_2026-09-29.md`](doc/project_audit_2026-09-29.md)。
 
@@ -92,7 +93,8 @@ predictor-on 已通过 WSL 和 ModelSim 的完整 correctness gate，但当前�
 
 - Verilator 5.020 cache top compile audit 通过；
 - ModelSim 2020.4 在 `dcache_core.v` 和 `icache.v` 上复现 14 个先使用后声明/重复声明兼容错误；
-- cache functional smoke、hit rate、miss penalty、PDS 资源和时序尚未建立；
+- `verification/cache/run_wsl_cache_smoke.sh` 已覆盖 basic image 的初始化、乘除法、移位、比较和 load/store smoke；
+- cache hit rate、miss penalty、PDS 资源和时序尚未建立；
 - Cache 问题独立于 TCM predictor correctness gate，不阻塞当前稳定 baseline。
 
 详见 [`doc/verification/cache-competition-audit.md`](doc/verification/cache-competition-audit.md)。
@@ -152,10 +154,10 @@ retired = delta(minstret)
 CPI     = cycles / retired
 ```
 
-当前 direct-redirect、predictor-off 的 1-iteration validation smoke：
+当前 direct-redirect、MUL E1 bypass、predictor-off 的 1-iteration validation smoke：
 
 ```text
-cycles=384726 retired=315440 cpi_x1000=1219
+cycles=375330 retired=315440 cpi_x1000=1189
 ```
 
 该结果在两套仿真环境中一致，CRC 正确，但运行时间不足 CoreMark 官方至少 10 秒的计分要求，因此不是正式 CoreMark score，也不能推导 CoreMark/MHz。正式成绩必须在真实 FPGA 时钟下记录 compiler flags、iterations、运行时间、cycles、retired、CPI 和 CRC。
@@ -191,15 +193,21 @@ Verilator/ModelSim 的仿真 cycle 不能替代 FPGA implementation evidence。�
 
 ## 外设与系统集成
 
-当前 CPU top 尚未形成竞赛板级 UART/GPIO 子系统：
+当前 CPU top 已形成可仿真的竞赛外设集成路径；板级 pin/约束仍待 PDS：
 
 | 项目 | 当前状态 |
 | --- | --- |
-| UART | 尚未集成 |
-| GPIO | 尚未集成 |
+| UART | `competition_top` 已集成 TX/status MMIO，WSL/Verilator 和 ModelSim smoke PASS |
+| GPIO | `competition_top` 已集成 OUT/IN/OE MMIO，输入输出和最终 marker 已检查 |
 | Machine external interrupt | testbench 注入路径已验证；无 PLIC |
-| Timer interrupt | core 内部 compare 路径已验证；无正式 CLINT/板级 timer |
-| AXI/APB peripheral path | TCM top 有 AXI-Lite 外部访问路径；板级地址映射未冻结 |
+| Timer interrupt | competition peripheral 提供 `mtime/mtimecmp`，通过 `timer_intr_i` 接入 machine trap；无完整 CLINT/PLIC 声明 |
+| AXI/APB peripheral path | `competition_top` 复用 TCM 装载 AXI，并用 CPU AXI-Lite data port 连接外设；板卡 pin/约束仍待 PDS |
+
+competition top 的当前 MMIO 地址为 UART `0x10000000`、GPIO `0x10000010`、timer `0x10000020`。可重复的系统 smoke marker 为：
+
+```text
+COMPETITION_TCM_PASS cycles=1123 gpio_out=600d0001
+```
 
 ## 如何运行
 
@@ -228,6 +236,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -AiRepeat 16 -MaxCycles 2000000
 ```
 
+竞赛 UART/GPIO/timer smoke：
+
+```powershell
+wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv; bash verification/competition/run_wsl_competition_smoke.sh"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verification\modelsim\run_competition.ps1
+```
+
+CoreMark board-facing image and UART smoke：
+
+```powershell
+wsl.exe -d Ubuntu-A -- bash -lc "cd /mnt/a/ultraembedded-riscv; bash verification/coremark/run_wsl_coremark_uart_smoke.sh"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verification\modelsim\run_coremark_uart.ps1 -Iterations 1 -RunType validation -ClockHz 1000000
+```
+
 ## 目录结构
 
 | 路径 | 作用 |
@@ -254,7 +276,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 
 - 不是完整 RISC-V compliance 结果；
 - predictor recovery 的当前实现范围有限，且尚无性能收益；
-- Cache 尚无 ModelSim elaboration 与 functional regression；
+- Cache 尚无 ModelSim elaboration 与 functional regression，当前以 Verilator smoke 为证据；
 - 没有正式 CoreMark score、CoreMark/MHz 或 CoreMark/LUT；
 - 没有 PDS 资源/时序结果；
 - 没有完整 YOLO 模型、DDR 和板级外设集成；
