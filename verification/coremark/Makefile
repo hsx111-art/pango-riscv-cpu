@@ -13,6 +13,7 @@ ITERATIONS ?= 1
 TOTAL_DATA_SIZE ?= 2000
 CLOCK_HZ ?= 1000000
 RUN_TYPE ?= validation
+OUTPUT_DEVICE ?= sim
 
 ifeq ($(RUN_TYPE),performance)
 RUN_DEFINE := -DPERFORMANCE_RUN=1
@@ -24,13 +25,21 @@ else
 $(error RUN_TYPE must be performance, validation, or profile)
 endif
 
+ifeq ($(OUTPUT_DEVICE),sim)
+OUTPUT_DEFINE :=
+else ifeq ($(OUTPUT_DEVICE),competition-uart)
+OUTPUT_DEFINE := -DCOREMARK_MMIO_UART=1
+else
+$(error OUTPUT_DEVICE must be sim or competition-uart)
+endif
+
 CFLAGS := -march=rv32im_zicsr_zifencei -mabi=ilp32 -mcmodel=medany \
            -O2 -ffreestanding -fno-builtin -fno-pic -fno-stack-protector \
            -fno-asynchronous-unwind-tables -nostdlib -nostartfiles -static \
            -mno-relax -I$(PORT) -I$(COREMARK) \
            -DITERATIONS=$(ITERATIONS) -DTOTAL_DATA_SIZE=$(TOTAL_DATA_SIZE) \
-           -DCOREMARK_CLOCK_HZ=$(CLOCK_HZ) $(RUN_DEFINE)
-LDFLAGS := -T$(PORT)/link_coremark.ld -Wl,--no-relax
+           -DCOREMARK_CLOCK_HZ=$(CLOCK_HZ) $(RUN_DEFINE) $(OUTPUT_DEFINE)
+LDFLAGS := -T$(PORT)/link_coremark.ld -Wl,--no-relax -Wl,--build-id=none
 
 SRCS := $(COREMARK)/core_list_join.c $(COREMARK)/core_main.c \
         $(COREMARK)/core_matrix.c $(COREMARK)/core_state.c \
@@ -53,7 +62,7 @@ $(ELF): $(SRCS) $(PORT)/core_portme.h $(COREMARK)/coremark.h \
 
 info:
 	@echo "ELF=$(ELF)"
-	@echo "ITERATIONS=$(ITERATIONS) TOTAL_DATA_SIZE=$(TOTAL_DATA_SIZE) CLOCK_HZ=$(CLOCK_HZ) RUN_TYPE=$(RUN_TYPE)"
+	@echo "ITERATIONS=$(ITERATIONS) TOTAL_DATA_SIZE=$(TOTAL_DATA_SIZE) CLOCK_HZ=$(CLOCK_HZ) RUN_TYPE=$(RUN_TYPE) OUTPUT_DEVICE=$(OUTPUT_DEVICE)"
 	@echo "CFLAGS=$(CFLAGS)"
 
 clean:

@@ -662,6 +662,14 @@ ee_vsprintf(char *buf, const char *fmt, va_list args)
 void
 uart_send_char(char c)
 {
+#ifdef COREMARK_MMIO_UART
+    volatile unsigned int *uart_tx = (volatile unsigned int *)0x10000000u;
+    volatile unsigned int *uart_status = (volatile unsigned int *)0x10000004u;
+
+    while ((*uart_status & 2u) != 0u)
+        ;
+    *uart_tx = (unsigned char)c;
+#else
     unsigned int value = 0x01000000u | (unsigned char)c;
     asm volatile ("csrw dscratch, %0" : : "r"(value));
     /*	Output of a char to a UART usually follows the following model:
@@ -677,6 +685,7 @@ uart_send_char(char c)
             Check the UART sample code on your platform or the board
        documentation.
     */
+#endif
 }
 
 int
